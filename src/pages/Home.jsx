@@ -80,14 +80,14 @@ export default function Home() {
   return (
     <>
       <Topbar />
-      <div className='min-h-screen py-8 px-4 sm:px-6 lg:px-8'>
+      <div className='min-h-screen py-8 px-4 sm:px-6 lg:px-8 bg-base-200'>
         <div className='max-w-7xl mx-auto'>
           <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8'>
             <div>
-              <h1 className='text-4xl font-bold text-slate-800 mb-2'>
+              <h1 className='text-4xl font-bold text-primary mb-2'>
                 Job Sites
               </h1>
-              <p className='text-slate-600'>
+              <p className='text-secondary'>
                 Manage and track all your construction projects
               </p>
             </div>
@@ -95,7 +95,7 @@ export default function Home() {
               <div className='flex gap-2'>
                 <button
                   type='button'
-                  className='btn btn-outline flex gap-2'
+                  className='btn btn-outline btn-secondary flex gap-2'
                   onClick={() => setCategoriesDialogOpen(true)}>
                   <Settings className='h-4 w-4' />
                   Categories
@@ -158,13 +158,15 @@ export default function Home() {
         />
         {/* Category Dialog */}
         <dialog className={`modal ${categoriesDialogOpen ? 'modal-open' : ''}`}>
-          <form method='dialog' className='modal-box'>
-            <h3 className='font-bold text-lg mb-4'>Manage Categories</h3>
+          <form method='dialog' className='modal-box bg-base-100'>
+            <h3 className='font-bold text-lg mb-4 text-primary'>
+              Manage Categories
+            </h3>
             <div className='space-y-4'>
               <div className='flex gap-2'>
                 <input
                   type='text'
-                  className='input input-bordered w-full'
+                  className='input input-bordered input-secondary w-full'
                   placeholder='New category name'
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
@@ -204,11 +206,11 @@ export default function Home() {
                     </span>
                     <button
                       type='button'
-                      className='btn btn-ghost btn-sm text-error hover:bg-error/10 flex gap-1'
+                      className='btn btn-ghost btn-sm hover:bg-error/10 flex gap-1'
                       onClick={() =>
                         setCategories(categories.filter((c) => c.id !== cat.id))
                       }>
-                      <Trash2 className='h-4 w-4' />
+                      <Trash2 className='h-4 w-4 text-error' />
                     </button>
                   </div>
                 ))}
@@ -222,7 +224,7 @@ export default function Home() {
             <div className='modal-action'>
               <button
                 type='button'
-                className='btn'
+                className='btn btn-secondary'
                 onClick={() => setCategoriesDialogOpen(false)}>
                 Close
               </button>
@@ -231,16 +233,16 @@ export default function Home() {
         </dialog>
         {/* Delete Site Dialog */}
         <dialog className={`modal ${deleteDialogOpen ? 'modal-open' : ''}`}>
-          <form method='dialog' className='modal-box'>
-            <h3 className='font-bold text-lg'>Delete Job Site?</h3>
-            <p className='py-4'>
+          <form method='dialog' className='modal-box bg-base-100'>
+            <h3 className='font-bold text-lg text-error'>Delete Job Site?</h3>
+            <p className='py-4 text-base-content'>
               This will permanently delete "{siteToDelete?.name}" and all its
               tasks. This action cannot be undone.
             </p>
             <div className='modal-action flex gap-2'>
               <button
                 type='button'
-                className='btn'
+                className='btn btn-secondary'
                 onClick={() => setDeleteDialogOpen(false)}>
                 Cancel
               </button>
