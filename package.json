@@ -11,13 +11,17 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
+    "cors": "^2.8.5",
     "daisyui": "^5.5.5",
+    "express": "^5.1.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.554.0",
+    "multer": "^2.0.2",
     "prettier": "^3.6.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
+    "sqlite3": "^5.1.7",
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {

@@ -18,7 +18,7 @@ function App() {
       element: <Lots />
     },
     {
-      path: '/tasks',
+      path: '/tasks/:id',
       element: <Tasks />
     },
     {

@@ -1,4 +1,16 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @plugin "daisyui" {
-    themes: forest --default;
+  themes: corporate --default;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(
+    --b2,
+    #e5e7eb
+  ); /* daisyUI bg-base-200 fallback to Tailwind gray-200 */
 }

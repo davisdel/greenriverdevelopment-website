@@ -3,6 +3,11 @@ import { Building2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function JobSiteCard({ site, taskCounts, onClick }) {
+  const header =
+    window.location.hostname === 'localhost'
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
+
   const totalTasks = Object.values(taskCounts).reduce(
     (sum, count) => sum + count.total,
     0
@@ -15,36 +20,34 @@ export default function JobSiteCard({ site, taskCounts, onClick }) {
 
   return (
     <div
-      className='card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all border-base-200'
+      className='card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all border-primary border-2'
       onClick={onClick}>
-      <div className='relative h-48 bg-gradient-to-br from-base-200 to-base-300 overflow-hidden'>
+      <div className='relative h-48 bg-gradient-to-br from-primary/10 to-base-300 overflow-hidden'>
         {site.image_url ? (
           <img
-            src={site.image_url}
+            src={header + site.image_url}
             alt={site.name}
             className='w-full h-full object-cover'
           />
         ) : (
           <div className='w-full h-full flex items-center justify-center'>
-            <Building2 className='h-16 w-16 text-base-content/40' />
+            <Building2 className='h-16 w-16 text-secondary' />
           </div>
         )}
         {totalTasks > 0 && (
-          <div className='absolute top-3 right-3 bg-base-100/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg'>
-            <span className='text-sm font-semibold text-base-content'>
+          <div className='absolute top-3 right-3 bg-primary/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg'>
+            <span className='text-sm font-semibold text-white'>
               {completedTasks}/{totalTasks}
             </span>
           </div>
         )}
       </div>
       <div className='card-body p-5'>
-        <h3 className='text-xl font-bold text-base-content mb-3'>
-          {site.name}
-        </h3>
+        <h3 className='text-xl font-bold text-primary mb-3'>{site.name}</h3>
         {totalTasks > 0 ? (
           <>
             <div className='mb-3'>
-              <div className='flex justify-between text-xs text-base-content/60 mb-1'>
+              <div className='flex justify-between text-xs text-secondary mb-1'>
                 <span>Progress</span>
                 <span>{Math.round(progress)}%</span>
               </div>
@@ -60,7 +63,7 @@ export default function JobSiteCard({ site, taskCounts, onClick }) {
                 <div
                   key={categoryName}
                   className='flex items-center justify-between text-sm'>
-                  <span className='text-base-content/60'>{categoryName}</span>
+                  <span className='text-secondary'>{categoryName}</span>
                   <div className='flex items-center gap-2'>
                     <span
                       className={`badge badge-outline gap-1 ${counts.completed === counts.total ? 'badge-success' : 'badge-warning'}`}>

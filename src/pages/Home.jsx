@@ -1,50 +1,45 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Settings, Trash2 } from 'lucide-react'
 import JobSiteCard from '../components/JobSiteCard'
 import AddJobSiteDialog from '../components/AddJobSiteDialog'
 import Topbar from '../components/Topbar'
 
+const API_URL = 'http://localhost:4000/api'
+
 export default function Home() {
   const navigate = useNavigate()
   const isAdmin = true
-  const [sites, setSites] = useState([
-    { id: '1', name: 'Site A', image_url: '', created_date: '2025-11-01' },
-    { id: '2', name: 'Site B', image_url: '', created_date: '2025-11-10' }
-  ])
-  const [tasks, setTasks] = useState([
-    {
-      id: '1',
-      site_id: '1',
-      category_id: '1',
-      name: 'Task 1',
-      completed: false
-    },
-    {
-      id: '2',
-      site_id: '1',
-      category_id: '2',
-      name: 'Task 2',
-      completed: true
-    },
-    {
-      id: '3',
-      site_id: '2',
-      category_id: '1',
-      name: 'Task 3',
-      completed: false
-    }
-  ])
-  const [categories, setCategories] = useState([
-    { id: '1', name: 'General' },
-    { id: '2', name: 'Electrical' }
-  ])
+  const [sites, setSites] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [categories, setCategories] = useState([])
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [siteToDelete, setSiteToDelete] = useState(null)
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [sitesLoading] = useState(false)
+  const [sitesLoading, setSitesLoading] = useState(false)
+
+  // Fetch job sites, tasks, categories from backend
+  useEffect(() => {
+    setSitesLoading(true)
+    fetch(`${API_URL}/job-sites`)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('Fetched job sites:', data)
+        setSites(data)
+        setSitesLoading(false)
+      })
+      .catch(() => setSitesLoading(false))
+    fetch(`${API_URL}/tasks`)
+      .then((res) => res.json())
+      .then(setTasks)
+      .catch(() => setTasks([]))
+    fetch(`${API_URL}/categories`)
+      .then((res) => res.json())
+      .then(setCategories)
+      .catch(() => setCategories([]))
+  }, [])
 
   const getTaskCountsForSite = (siteId) => {
     const siteTasks = tasks.filter((t) => t.site_id === siteId)
@@ -68,8 +63,11 @@ export default function Home() {
     setSiteToDelete(site)
     setDeleteDialogOpen(true)
   }
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (siteToDelete) {
+      await fetch(`${API_URL}/job-sites/${siteToDelete.id}`, {
+        method: 'DELETE'
+      })
       setSites(sites.filter((s) => s.id !== siteToDelete.id))
       setTasks(tasks.filter((t) => t.site_id !== siteToDelete.id))
       setDeleteDialogOpen(false)
@@ -126,7 +124,7 @@ export default function Home() {
                   <JobSiteCard
                     site={site}
                     taskCounts={getTaskCountsForSite(site.id)}
-                    onClick={() => navigate('/home')}
+                    onClick={() => navigate('/tasks/' + site.id)}
                   />
                   {isAdmin && (
                     <button
@@ -144,16 +142,16 @@ export default function Home() {
         <AddJobSiteDialog
           open={addDialogOpen}
           onOpenChange={setAddDialogOpen}
-          onSuccess={() => {
-            setSites([
-              ...sites,
-              {
-                id: String(Date.now()),
-                name: 'New Site',
-                image_url: '',
-                created_date: new Date().toISOString().slice(0, 10)
-              }
-            ])
+          onSuccess={async (newSiteData) => {
+            const res = await fetch(`${API_URL}/job-sites`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(
+                newSiteData
+              )
+            })
+            const created = await res.json()
+            setSites([...sites, created])
           }}
         />
         {/* Category Dialog */}
@@ -170,12 +168,15 @@ export default function Home() {
                   placeholder='New category name'
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  onKeyPress={(e) => {
+                  onKeyPress={async (e) => {
                     if (e.key === 'Enter' && newCategoryName.trim()) {
-                      setCategories([
-                        ...categories,
-                        { id: String(Date.now()), name: newCategoryName.trim() }
-                      ])
+                      const res = await fetch(`${API_URL}/categories`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newCategoryName.trim() })
+                      })
+                      const created = await res.json()
+                      setCategories([...categories, created])
                       setNewCategoryName('')
                     }
                   }}
@@ -183,12 +184,15 @@ export default function Home() {
                 <button
                   type='button'
                   className='btn btn-primary'
-                  onClick={() => {
+                  onClick={async () => {
                     if (newCategoryName.trim()) {
-                      setCategories([
-                        ...categories,
-                        { id: String(Date.now()), name: newCategoryName.trim() }
-                      ])
+                      const res = await fetch(`${API_URL}/categories`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newCategoryName.trim() })
+                      })
+                      const created = await res.json()
+                      setCategories([...categories, created])
                       setNewCategoryName('')
                     }
                   }}
@@ -207,9 +211,12 @@ export default function Home() {
                     <button
                       type='button'
                       className='btn btn-ghost btn-sm hover:bg-error/10 flex gap-1'
-                      onClick={() =>
+                      onClick={async () => {
+                        await fetch(`${API_URL}/categories/${cat.id}`, {
+                          method: 'DELETE'
+                        })
                         setCategories(categories.filter((c) => c.id !== cat.id))
-                      }>
+                      }}>
                       <Trash2 className='h-4 w-4 text-error' />
                     </button>
                   </div>

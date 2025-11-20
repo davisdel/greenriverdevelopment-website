@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
 
+const API_URL = 'http://localhost:4000/api'
+
 export default function TaskDialog({
   open,
   onOpenChange,
@@ -44,23 +46,40 @@ export default function TaskDialog({
     try {
       let imageUrl = formData.image_url
       if (imageFile) {
-        const { file_url } = await base44.integrations.Core.UploadFile({
-          file: imageFile
+        // Upload image to backend
+        const formDataImg = new FormData()
+        formDataImg.append('file', imageFile)
+        const res = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          body: formDataImg
         })
-        imageUrl = file_url
+        const data = await res.json()
+        imageUrl = data.url
       }
 
       const data = {
         ...formData,
-        site_id: siteId,
         image_url: imageUrl,
         completed: task?.completed || false
       }
 
+      // Always include site_id in the payload
+      if (siteId) {
+        data.site_id = siteId
+      }
+
       if (task) {
-        await base44.entities.Task.update(task.id, data)
+        await fetch(`${API_URL}/tasks/${task.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
       } else {
-        await base44.entities.Task.create(data)
+        await fetch(`${API_URL}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
       }
 
       onSuccess()
@@ -76,14 +95,16 @@ export default function TaskDialog({
     <dialog className={`modal ${open ? 'modal-open' : ''}`}>
       <form
         method='dialog'
-        className='modal-box max-w-2xl'
+        className='modal-box max-w-2xl bg-base-100'
         onSubmit={handleSubmit}>
-        <h3 className='font-bold text-lg mb-4'>
+        <h3 className='font-bold text-lg mb-4 text-primary'>
           {task ? 'Edit Task' : 'Add New Task'}
         </h3>
         <div className='space-y-4'>
           <div>
-            <label htmlFor='name' className='block mb-1 font-medium'>
+            <label
+              htmlFor='name'
+              className='block mb-1 font-medium text-secondary'>
               Task Name
             </label>
             <input
@@ -94,11 +115,13 @@ export default function TaskDialog({
               }
               placeholder='Enter task name'
               required
-              className='input input-bordered w-full'
+              className='input input-bordered input-primary w-full'
             />
           </div>
           <div>
-            <label htmlFor='description' className='block mb-1 font-medium'>
+            <label
+              htmlFor='description'
+              className='block mb-1 font-medium text-secondary'>
               Description
             </label>
             <textarea
@@ -109,11 +132,13 @@ export default function TaskDialog({
               }
               placeholder='Enter task description'
               rows={3}
-              className='textarea textarea-bordered w-full'
+              className='textarea textarea-bordered textarea-primary w-full'
             />
           </div>
           <div>
-            <label htmlFor='category' className='block mb-1 font-medium'>
+            <label
+              htmlFor='category'
+              className='block mb-1 font-medium text-secondary'>
               Category
             </label>
             <select
@@ -123,7 +148,7 @@ export default function TaskDialog({
                 setFormData({ ...formData, category_id: e.target.value })
               }
               required
-              className='select select-bordered w-full'>
+              className='select select-bordered select-primary w-full'>
               <option value='' disabled>
                 Select a category
               </option>
@@ -135,11 +160,13 @@ export default function TaskDialog({
             </select>
           </div>
           <div>
-            <label htmlFor='image' className='block mb-1 font-medium'>
+            <label
+              htmlFor='image'
+              className='block mb-1 font-medium text-secondary'>
               Task Image (Optional)
             </label>
-            <label className='flex items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-base-300 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/10 transition-colors mt-2'>
-              <Upload className='h-5 w-5 text-base-content/40' />
+            <label className='flex items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-primary rounded-lg cursor-pointer hover:border-primary hover:bg-primary/10 transition-colors mt-2'>
+              <Upload className='h-5 w-5 text-primary/40' />
               <span className='text-sm text-base-content'>
                 {imageFile
                   ? imageFile.name
@@ -160,7 +187,7 @@ export default function TaskDialog({
         <div className='modal-action flex gap-2 mt-6'>
           <button
             type='button'
-            className='btn'
+            className='btn btn-secondary'
             onClick={() => onOpenChange(false)}>
             Cancel
           </button>
