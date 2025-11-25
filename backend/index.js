@@ -1,3 +1,7 @@
+import 'dotenv/config'
+import process from 'node:process'
+import session from 'express-session'
+import bcrypt from 'bcryptjs'
 import express from 'express'
 import sqlite3pkg from 'sqlite3'
 import cors from 'cors'
@@ -19,19 +23,24 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-app.use(cors())
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'https://taskpro.davisdel.com'], // Vite default dev server
+    credentials: true
+  })
+)
 app.use(express.json())
+// Session middleware
+app.use(
+  session({
+    secret: process.env.SECRET_PHRASE,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 2 } // 2 hours
+  })
+)
 
 app.use('/uploads', express.static('uploads'))
-
-// File upload route
-app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' })
-  }
-  const url = `/uploads/${req.file.filename}`
-  res.json({ url })
-})
 
 // Initialize SQLite DB
 const db = new sqlite3.Database('./database.sqlite', (err) => {
@@ -64,9 +73,144 @@ const createTables = () => {
   db.run(`CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL
-  )`)
+    )`)
+  db.run(`CREATE TABLE IF NOT EXISTS admin_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      created_at TEXT
+    )`)
 }
+
 createTables()
+
+// File upload route
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' })
+  }
+  const url = `/uploads/${req.file.filename}`
+  res.json({ url })
+})
+
+// Get current admin user from session
+app.get('/api/admin/me', (req, res) => {
+  if (req.session && req.session.adminUser) {
+    res.json({
+      id: req.session.adminUser.id,
+      username: req.session.adminUser.username,
+      created_at: req.session.adminUser.created_at,
+      role: 'admin'
+    })
+  } else {
+    res.status(401).json({ error: 'Not authenticated' })
+  }
+})
+
+// Create admin user (register)
+app.post('/api/admin/register', async (req, res) => {
+  const { username, password, register_code } = req.body
+  if (!username || !password || !register_code) {
+    return res
+      .status(400)
+      .json({ error: 'Username, password, and register_code required' })
+  }
+  if (register_code !== process.env.REGISTER_ADMIN_CODE) {
+    return res.status(403).json({ error: 'Invalid registration code' })
+  }
+  try {
+    const salt = await bcrypt.genSalt(10)
+    const hash = await bcrypt.hash(password, salt)
+    const created_at = new Date().toISOString()
+    db.run(
+      'INSERT INTO admin_users (username, password_hash, salt, created_at) VALUES (?, ?, ?, ?)',
+      [username, hash, salt, created_at],
+      function (err) {
+        if (err) {
+          if (err.message.includes('UNIQUE')) {
+            return res.status(409).json({ error: 'Username already exists' })
+          }
+          return res.status(500).json({ error: err.message })
+        }
+        res.json({ id: this.lastID, username, created_at })
+      }
+    )
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Admin login
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' })
+  }
+  db.get(
+    'SELECT * FROM admin_users WHERE username = ?',
+    [username],
+    async (err, user) => {
+      if (err) return res.status(500).json({ error: err.message })
+      if (!user) return res.status(401).json({ error: 'Invalid credentials' })
+      const match = await bcrypt.compare(password, user.password_hash)
+      if (!match) return res.status(401).json({ error: 'Invalid credentials' })
+      // Set session
+      req.session.adminUser = {
+        id: user.id,
+        username: user.username,
+        created_at: user.created_at
+      }
+      res.json({
+        id: user.id,
+        username: user.username,
+        created_at: user.created_at,
+        salt: user.salt,
+        session: true
+      })
+    }
+  )
+})
+
+// Admin logout
+app.post('/api/admin/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.json({ success: true })
+  })
+})
+
+// Middleware to require admin session
+function requireAdminSession(req, res, next) {
+  if (req.session && req.session.adminUser) {
+    next()
+  } else {
+    res.status(401).json({ error: 'Not authenticated' })
+  }
+}
+
+// List all admin users (for management)
+app.get('/api/admin/users', requireAdminSession, (req, res) => {
+  db.all(
+    'SELECT id, username, created_at FROM admin_users',
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message })
+      res.json(rows)
+    }
+  )
+})
+
+// Delete an admin user
+app.delete('/api/admin/users/:id', requireAdminSession, (req, res) => {
+  db.run(
+    'DELETE FROM admin_users WHERE id = ?',
+    [req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message })
+      res.json({ deleted: this.changes })
+    }
+  )
+})
 
 // API routes
 app.get('/api/job-sites', (req, res) => {
@@ -111,8 +255,7 @@ app.delete('/api/job-sites/:id', (req, res) => {
         (err2, taskRows) => {
           if (err2) return res.status(500).json({ error: err2.message })
           // Delete all task images
-          let deletedTaskImages = 0
-          let totalTaskImages = taskRows.length
+          // removed unused variables
           taskRows.forEach((task) => {
             if (task.image_url && task.image_url.startsWith('/uploads/')) {
               const taskImagePath =

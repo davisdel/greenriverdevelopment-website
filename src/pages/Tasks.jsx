@@ -4,20 +4,27 @@ import { useNavigate, useParams } from 'react-router-dom'
 import TaskRow from '../components/TaskRow'
 import TaskDialog from '../components/TaskDialog'
 import Topbar from '../components/Topbar'
+
 const API_URL = 'http://localhost:4000/api'
 
-export default function Tasks() {
-  // Clear all completed tasks (delete from DB and remove images)
-  const handleClearCompleted = async () => {
-    const completedTasks = tasks.filter((t) => t.completed)
-    await Promise.all(
-      completedTasks.map((task) =>
-        fetch(`${API_URL}/tasks/${task.id}`, { method: 'DELETE' })
-      )
-    )
-    // Refresh tasks after deletion
-    refreshTasks()
+// Helper to get current admin user from session
+async function fetchAdminUser() {
+  try {
+    const res = await fetch(`${API_URL}/admin/me`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
   }
+}
+
+export default function Tasks() {
+  const [user, setUser] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminError, setAdminError] = useState('')
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [modalImageUrl, setModalImageUrl] = useState('')
   const navigate = useNavigate()
@@ -27,13 +34,27 @@ export default function Tasks() {
   const [taskToDelete, setTaskToDelete] = useState(null)
   const [filterCategory, setFilterCategory] = useState('all')
 
+  // Handle login/register from Topbar
+  function handleLogin(type, data) {
+    setUser(data)
+    setIsAdmin(!!data && data.role === 'admin')
+  }
+
+  // Handle logout from Topbar
+  async function handleLogout() {
+    await fetch(`${API_URL}/admin/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+    setUser(null)
+    setIsAdmin(false)
+  }
+
   // Get siteId from route params (pattern: /tasks/:id)
   const { id: siteId } = useParams()
 
   const [tasks, setTasks] = useState([])
   const [categories, setCategories] = useState([])
-
-  const isAdmin = true
 
   const header =
     window.location.hostname === 'localhost'
@@ -50,6 +71,16 @@ export default function Tasks() {
       .then((res) => res.json())
       .then(setCategories)
       .catch(() => setCategories([]))
+    // Check admin session and set user info from /admin/me
+    fetchAdminUser().then((u) => {
+      if (u && u.username) {
+        setUser({ ...u, email: u.username })
+        setIsAdmin(u.role === 'admin')
+      } else {
+        setUser(null)
+        setIsAdmin(false)
+      }
+    })
   }, [siteId])
 
   // Image pop-out logic
@@ -79,16 +110,52 @@ export default function Tasks() {
     setTaskDialogOpen(true)
   }
   const handleDelete = async (task) => {
+    setAdminError('')
+    const u = await fetchAdminUser()
+    if (!u || u.role !== 'admin') {
+      setAdminError('You must be logged in as admin to delete tasks.')
+      return
+    }
     setTaskToDelete(task)
     setDeleteDialogOpen(true)
   }
   const confirmDelete = async () => {
+    setAdminError('')
+    const u = await fetchAdminUser()
+    if (!u || u.role !== 'admin') {
+      setAdminError('You must be logged in as admin to delete tasks.')
+      return
+    }
     if (taskToDelete) {
-      await fetch(`${API_URL}/tasks/${taskToDelete.id}`, { method: 'DELETE' })
+      await fetch(`${API_URL}/tasks/${taskToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
       setTasks(tasks.filter((t) => t.id !== taskToDelete.id))
       setDeleteDialogOpen(false)
       setTaskToDelete(null)
     }
+  }
+
+  // Clear all completed tasks (delete from DB and remove images)
+  const handleClearCompleted = async () => {
+    setAdminError('')
+    const u = await fetchAdminUser()
+    if (!u || u.role !== 'admin') {
+      setAdminError('You must be logged in as admin to clear completed tasks.')
+      return
+    }
+    const completedTasks = tasks.filter((t) => t.completed)
+    await Promise.all(
+      completedTasks.map((task) =>
+        fetch(`${API_URL}/tasks/${task.id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        })
+      )
+    )
+    // Refresh tasks after deletion
+    refreshTasks()
   }
 
   // Refresh tasks after add/edit
@@ -115,7 +182,8 @@ export default function Tasks() {
 
   return (
     <>
-      <Topbar />
+      <Topbar user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      {adminError && <div className='alert alert-error my-4'>{adminError}</div>}
       <div className='min-h-screen py-8 px-4 sm:px-6 lg:px-8'>
         <div className='max-w-7xl mx-auto'>
           <div className='mb-6'>

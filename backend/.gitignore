@@ -27,3 +27,5 @@ dist-ssr
 
 #image files
 /uploads
+
+.env

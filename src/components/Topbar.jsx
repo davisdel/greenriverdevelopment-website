@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Building2,
@@ -8,14 +8,100 @@ import {
   User
 } from 'lucide-react'
 
+const API_URL = 'http://localhost:4000/api'
+
 export default function Topbar({
   currentPageName,
   user,
   loading,
   onLogout,
-  onLogin
+  onLogin // still used for parent update after login/register
 }) {
   const isAdmin = user?.role === 'admin'
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [tab, setTab] = useState('login')
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [registerForm, setRegisterForm] = useState({
+    username: '',
+    password: '',
+    register_code: ''
+  })
+  const [formError, setFormError] = useState('')
+  const [formLoading, setFormLoading] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    if (!dropdownOpen) return
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false)
+        setFormError('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [dropdownOpen])
+
+  // Backend integration for login
+  async function handleLoginSubmit(e) {
+    e.preventDefault()
+    setFormLoading(true)
+    setFormError('')
+    try {
+      const res = await fetch(`${API_URL}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginForm),
+        credentials: 'include' // allow session cookie to be set
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Login failed')
+      setDropdownOpen(false)
+      setLoginForm({ username: '', password: '' })
+      // Set user session in parent
+      if (onLogin)
+        onLogin('login', {
+          ...data,
+          role: 'admin',
+          email: data.username // for display in topbar
+        })
+    } catch (err) {
+      setFormError(err.message || 'Login failed')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  // Backend integration for register
+  async function handleRegisterSubmit(e) {
+    e.preventDefault()
+    setFormLoading(true)
+    setFormError('')
+    try {
+      const res = await fetch(`${API_URL}/admin/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registerForm),
+        credentials: 'include' // allow session cookie to be set if backend does this
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Registration failed')
+      setDropdownOpen(false)
+      setRegisterForm({ username: '', password: '', register_code: '' })
+      // Set user session in parent
+      if (onLogin)
+        onLogin('register', {
+          ...data,
+          role: 'admin',
+          email: data.username // for display in topbar
+        })
+    } catch (err) {
+      setFormError(err.message || 'Registration failed')
+    } finally {
+      setFormLoading(false)
+    }
+  }
 
   return (
     <nav className='bg-base-100 border-b border-base-200 shadow-sm sticky top-0 z-50'>
@@ -76,9 +162,127 @@ export default function Topbar({
                 </button>
               </>
             ) : (
-              <button onClick={onLogin} className='btn btn-primary btn-sm'>
-                Admin Login
-              </button>
+              <div className='relative' ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  className='btn btn-primary btn-sm'
+                  type='button'>
+                  Admin Login
+                </button>
+                {dropdownOpen && (
+                  <div className='absolute right-0 mt-2 w-80 bg-base-100 border border-base-200 rounded-lg shadow-lg z-50 p-4'>
+                    <div className='flex mb-4'>
+                      <button
+                        className={`flex-1 py-2 font-semibold rounded-tl-lg ${tab === 'login' ? 'bg-primary text-white' : 'bg-base-200 text-base-content'}`}
+                        onClick={() => {
+                          setTab('login')
+                          setFormError('')
+                        }}
+                        type='button'>
+                        Login
+                      </button>
+                      <button
+                        className={`flex-1 py-2 font-semibold rounded-tr-lg ${tab === 'register' ? 'bg-primary text-white' : 'bg-base-200 text-base-content'}`}
+                        onClick={() => {
+                          setTab('register')
+                          setFormError('')
+                        }}
+                        type='button'>
+                        Register
+                      </button>
+                    </div>
+                    {tab === 'login' ? (
+                      <form className='space-y-3' onSubmit={handleLoginSubmit}>
+                        <input
+                          className='input input-bordered w-full'
+                          placeholder='Username'
+                          value={loginForm.username}
+                          onChange={(e) =>
+                            setLoginForm((f) => ({
+                              ...f,
+                              username: e.target.value
+                            }))
+                          }
+                          required
+                        />
+                        <input
+                          className='input input-bordered w-full'
+                          placeholder='Password'
+                          type='password'
+                          value={loginForm.password}
+                          onChange={(e) =>
+                            setLoginForm((f) => ({
+                              ...f,
+                              password: e.target.value
+                            }))
+                          }
+                          required
+                        />
+                        {formError && (
+                          <div className='text-error text-sm'>{formError}</div>
+                        )}
+                        <button
+                          className='btn btn-primary w-full mt-2'
+                          type='submit'
+                          disabled={formLoading}>
+                          {formLoading ? 'Logging in...' : 'Login'}
+                        </button>
+                      </form>
+                    ) : (
+                      <form
+                        className='space-y-3'
+                        onSubmit={handleRegisterSubmit}>
+                        <input
+                          className='input input-bordered w-full'
+                          placeholder='Username'
+                          value={registerForm.username}
+                          onChange={(e) =>
+                            setRegisterForm((f) => ({
+                              ...f,
+                              username: e.target.value
+                            }))
+                          }
+                          required
+                        />
+                        <input
+                          className='input input-bordered w-full'
+                          placeholder='Password'
+                          type='password'
+                          value={registerForm.password}
+                          onChange={(e) =>
+                            setRegisterForm((f) => ({
+                              ...f,
+                              password: e.target.value
+                            }))
+                          }
+                          required
+                        />
+                        <input
+                          className='input input-bordered w-full'
+                          placeholder='Registration Code'
+                          value={registerForm.register_code}
+                          onChange={(e) =>
+                            setRegisterForm((f) => ({
+                              ...f,
+                              register_code: e.target.value
+                            }))
+                          }
+                          required
+                        />
+                        {formError && (
+                          <div className='text-error text-sm'>{formError}</div>
+                        )}
+                        <button
+                          className='btn btn-primary w-full mt-2'
+                          type='submit'
+                          disabled={formLoading}>
+                          {formLoading ? 'Registering...' : 'Register'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

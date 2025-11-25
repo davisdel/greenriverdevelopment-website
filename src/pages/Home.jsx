@@ -11,11 +11,30 @@ import JobSiteCard from '../components/JobSiteCard'
 import AddJobSiteDialog from '../components/AddJobSiteDialog'
 import Topbar from '../components/Topbar'
 
-const API_URL = 'http://localhost:4000/api'
+const header =
+    window.location.hostname === 'localhost'
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
+
+
+// Helper to get current admin user from session
+async function fetchAdminUser() {
+  try {
+    const res = await fetch(`${header}/api/admin/me`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
 
 export default function Home() {
   const navigate = useNavigate()
-  const isAdmin = true
+  const [user, setUser] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [sites, setSites] = useState([])
   const [tasks, setTasks] = useState([])
   const [categories, setCategories] = useState([])
@@ -25,27 +44,53 @@ export default function Home() {
   const [siteToDelete, setSiteToDelete] = useState(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [sitesLoading, setSitesLoading] = useState(false)
+  const [adminError, setAdminError] = useState('')
 
   // Fetch job sites, tasks, categories from backend
   useEffect(() => {
     setSitesLoading(true)
-    fetch(`${API_URL}/job-sites`)
+    fetch(`${header}/api/job-sites`)
       .then((res) => res.json())
       .then((data) => {
-        console.log('Fetched job sites:', data)
         setSites(data)
         setSitesLoading(false)
       })
       .catch(() => setSitesLoading(false))
-    fetch(`${API_URL}/tasks`)
+    fetch(`${header}/api/tasks`)
       .then((res) => res.json())
       .then(setTasks)
       .catch(() => setTasks([]))
-    fetch(`${API_URL}/categories`)
+    fetch(`${header}/api/categories`)
       .then((res) => res.json())
       .then(setCategories)
       .catch(() => setCategories([]))
+    // Check admin session and set user info from /admin/me
+    fetchAdminUser().then((u) => {
+      if (u && u.username) {
+        setUser({ ...u, email: u.username })
+        setIsAdmin(u.role === 'admin')
+      } else {
+        setUser(null)
+        setIsAdmin(false)
+      }
+    })
   }, [])
+
+  // Handle login/register from Topbar
+  function handleLogin(type, data) {
+    setUser(data)
+    setIsAdmin(!!data && data.role === 'admin')
+  }
+
+  // Handle logout from Topbar
+  async function handleLogout() {
+    await fetch(`${header}/api/admin/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+    setUser(null)
+    setIsAdmin(false)
+  }
 
   const getTaskCountsForSite = (siteId) => {
     const siteTasks = tasks.filter((t) => t.site_id === siteId)
@@ -64,15 +109,28 @@ export default function Home() {
     return counts
   }
 
-  const handleDeleteSite = (site, e) => {
+  const handleDeleteSite = async (site, e) => {
     e.stopPropagation()
+    setAdminError('')
+    const u = await fetchAdminUser()
+    if (!u || u.role !== 'admin') {
+      setAdminError('You must be logged in as admin to delete job sites.')
+      return
+    }
     setSiteToDelete(site)
     setDeleteDialogOpen(true)
   }
   const confirmDelete = async () => {
+    setAdminError('')
+    const u = await fetchAdminUser()
+    if (!u || u.role !== 'admin') {
+      setAdminError('You must be logged in as admin to delete job sites.')
+      return
+    }
     if (siteToDelete) {
-      await fetch(`${API_URL}/job-sites/${siteToDelete.id}`, {
-        method: 'DELETE'
+      await fetch(`${header}/api/job-sites/${siteToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
       })
       setSites(sites.filter((s) => s.id !== siteToDelete.id))
       setTasks(tasks.filter((t) => t.site_id !== siteToDelete.id))
@@ -83,7 +141,7 @@ export default function Home() {
 
   return (
     <>
-      <Topbar />
+      <Topbar user={user} onLogin={handleLogin} onLogout={handleLogout} />
       <div className='min-h-screen py-8 px-4 sm:px-6 lg:px-8 bg-base-200'>
         <div className='max-w-7xl mx-auto'>
           <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8'>
@@ -100,14 +158,34 @@ export default function Home() {
                 <button
                   type='button'
                   className='btn btn-outline btn-secondary flex gap-2'
-                  onClick={() => setCategoriesDialogOpen(true)}>
+                  onClick={async () => {
+                    setAdminError('')
+                    const u = await fetchAdminUser()
+                    if (!u || u.role !== 'admin') {
+                      setAdminError(
+                        'You must be logged in as admin to manage categories.'
+                      )
+                      return
+                    }
+                    setCategoriesDialogOpen(true)
+                  }}>
                   <Settings className='h-4 w-4' />
                   Categories
                 </button>
                 <button
                   type='button'
                   className='btn btn-primary flex gap-2'
-                  onClick={() => setAddDialogOpen(true)}>
+                  onClick={async () => {
+                    setAdminError('')
+                    const u = await fetchAdminUser()
+                    if (!u || u.role !== 'admin') {
+                      setAdminError(
+                        'You must be logged in as admin to add job sites.'
+                      )
+                      return
+                    }
+                    setAddDialogOpen(true)
+                  }}>
                   <Plus className='h-4 w-4' />
                   Add Job Site
                 </button>
@@ -136,7 +214,17 @@ export default function Home() {
                 <button
                   type='button'
                   className='btn btn-primary flex gap-2'
-                  onClick={() => setAddDialogOpen(true)}>
+                  onClick={async () => {
+                    setAdminError('')
+                    const u = await fetchAdminUser()
+                    if (!u || u.role !== 'admin') {
+                      setAdminError(
+                        'You must be logged in as admin to add job sites.'
+                      )
+                      return
+                    }
+                    setAddDialogOpen(true)
+                  }}>
                   <Plus className='h-4 w-4' /> Add Job Site
                 </button>
               )}
@@ -170,6 +258,9 @@ export default function Home() {
             setSites((prev) => [...prev, createdSite])
           }}
         />
+        {adminError && (
+          <div className='alert alert-error my-4'>{adminError}</div>
+        )}
         {/* Category Dialog */}
         <dialog className={`modal ${categoriesDialogOpen ? 'modal-open' : ''}`}>
           <form method='dialog' className='modal-box bg-base-100'>
@@ -186,10 +277,18 @@ export default function Home() {
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   onKeyPress={async (e) => {
                     if (e.key === 'Enter' && newCategoryName.trim()) {
-                      const res = await fetch(`${API_URL}/categories`, {
+                      const u = await fetchAdminUser()
+                      if (!u || u.role !== 'admin') {
+                        setAdminError(
+                          'You must be logged in as admin to add categories.'
+                        )
+                        return
+                      }
+                      const res = await fetch(`${header}/api/categories`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: newCategoryName.trim() })
+                        body: JSON.stringify({ name: newCategoryName.trim() }),
+                        credentials: 'include'
                       })
                       const created = await res.json()
                       setCategories([...categories, created])
@@ -202,10 +301,18 @@ export default function Home() {
                   className='btn btn-primary'
                   onClick={async () => {
                     if (newCategoryName.trim()) {
-                      const res = await fetch(`${API_URL}/categories`, {
+                      const u = await fetchAdminUser()
+                      if (!u || u.role !== 'admin') {
+                        setAdminError(
+                          'You must be logged in as admin to add categories.'
+                        )
+                        return
+                      }
+                      const res = await fetch(`${header}/api/categories`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: newCategoryName.trim() })
+                        body: JSON.stringify({ name: newCategoryName.trim() }),
+                        credentials: 'include'
                       })
                       const created = await res.json()
                       setCategories([...categories, created])
@@ -228,8 +335,16 @@ export default function Home() {
                       type='button'
                       className='btn btn-ghost btn-sm hover:bg-error/10 flex gap-1'
                       onClick={async () => {
-                        await fetch(`${API_URL}/categories/${cat.id}`, {
-                          method: 'DELETE'
+                        const u = await fetchAdminUser()
+                        if (!u || u.role !== 'admin') {
+                          setAdminError(
+                            'You must be logged in as admin to delete categories.'
+                          )
+                          return
+                        }
+                        await fetch(`${header}/api/categories/${cat.id}`, {
+                          method: 'DELETE',
+                          credentials: 'include'
                         })
                         setCategories(categories.filter((c) => c.id !== cat.id))
                       }}>
