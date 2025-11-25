@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 
 export default function JobSiteCard({ site, taskCounts, onClick }) {
   const header =
-    window.location.hostname === 'localhost'
+    import.meta.env.DEV
       ? 'http://localhost:4000'
       : 'https://taskpro.davisdel.com'
 

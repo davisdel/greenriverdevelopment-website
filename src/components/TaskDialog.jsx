@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
 
-const API_URL = 'http://localhost:4000/api'
+const header =
+    import.meta.env.DEV
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
 
 export default function TaskDialog({
   open,
@@ -49,7 +52,7 @@ export default function TaskDialog({
         // Upload image to backend
         const formDataImg = new FormData()
         formDataImg.append('file', imageFile)
-        const res = await fetch(`${API_URL}/upload`, {
+        const res = await fetch(`${header}/api/upload`, {
           method: 'POST',
           body: formDataImg
         })
@@ -69,13 +72,13 @@ export default function TaskDialog({
       }
 
       if (task) {
-        await fetch(`${API_URL}/tasks/${task.id}`, {
+        await fetch(`${header}/api/tasks/${task.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         })
       } else {
-        await fetch(`${API_URL}/tasks`, {
+        await fetch(`${header}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)

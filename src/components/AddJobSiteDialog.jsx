@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
 
-const API_URL = 'http://localhost:4000/api'
+const header =
+    import.meta.env.DEV
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
 
 export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
   const [name, setName] = useState('')
@@ -17,7 +20,7 @@ export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
         // Upload image to backend
         const formData = new FormData()
         formData.append('file', imageFile)
-        const res = await fetch(`${API_URL}/upload`, {
+        const res = await fetch(`${header}/api/upload`, {
           method: 'POST',
           body: formData
         })
@@ -25,7 +28,7 @@ export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
         imageUrl = data.url
       }
       // Create job site
-      const res = await fetch(`${API_URL}/job-sites`, {
+      const res = await fetch(`${header}/api/job-sites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

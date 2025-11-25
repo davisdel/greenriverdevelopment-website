@@ -11,7 +11,7 @@ export default function TaskRow({
   onImageClick
 }) {
   const header =
-    window.location.hostname === 'localhost'
+    import.meta.env.DEV
       ? 'http://localhost:4000'
       : 'https://taskpro.davisdel.com'
 
