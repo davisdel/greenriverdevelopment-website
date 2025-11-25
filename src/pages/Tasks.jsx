@@ -54,8 +54,14 @@ export default function Tasks() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...task, completed: !task.completed })
     })
-    const updated = await res.json()
-    setTasks(tasks.map((t) => (t.id === task.id ? updated : t)))
+    // The backend returns { updated: 1 }, so we need to update the local task manually
+    if (res.ok) {
+      setTasks(
+        tasks.map((t) =>
+          t.id === task.id ? { ...task, completed: !task.completed } : t
+        )
+      )
+    }
   }
   const handleEdit = (task) => {
     setEditingTask(task)
