@@ -35,9 +35,10 @@ export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
         })
       })
       if (res.ok) {
+        const created = await res.json()
         setName('')
         setImageFile(null)
-        onSuccess()
+        onSuccess(created)
         onOpenChange(false)
       }
     } catch (error) {

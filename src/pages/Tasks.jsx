@@ -7,6 +7,17 @@ import Topbar from '../components/Topbar'
 const API_URL = 'http://localhost:4000/api'
 
 export default function Tasks() {
+  // Clear all completed tasks (delete from DB and remove images)
+  const handleClearCompleted = async () => {
+    const completedTasks = tasks.filter((t) => t.completed)
+    await Promise.all(
+      completedTasks.map((task) =>
+        fetch(`${API_URL}/tasks/${task.id}`, { method: 'DELETE' })
+      )
+    )
+    // Refresh tasks after deletion
+    refreshTasks()
+  }
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [modalImageUrl, setModalImageUrl] = useState('')
   const navigate = useNavigate()
@@ -124,15 +135,24 @@ export default function Tasks() {
                 </p>
               </div>
               {isAdmin && (
-                <button
-                  type='button'
-                  className='btn btn-primary gap-2'
-                  onClick={() => {
-                    setEditingTask(null)
-                    setTaskDialogOpen(true)
-                  }}>
-                  <Plus className='h-4 w-4' /> Add Task
-                </button>
+                <div className='flex gap-2'>
+                  <button
+                    type='button'
+                    className='btn btn-primary gap-2'
+                    onClick={() => {
+                      setEditingTask(null)
+                      setTaskDialogOpen(true)
+                    }}>
+                    <Plus className='h-4 w-4' /> Add Task
+                  </button>
+                  <button
+                    type='button'
+                    className='btn btn-error gap-2'
+                    disabled={tasks.filter((t) => t.completed).length === 0}
+                    onClick={handleClearCompleted}>
+                    Clear Completed
+                  </button>
+                </div>
               )}
             </div>
           </div>

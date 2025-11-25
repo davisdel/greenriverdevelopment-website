@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, Trash2 } from 'lucide-react'
+import {
+  FileExclamationPoint,
+  LucideFileExclamationPoint,
+  Plus,
+  Settings,
+  Trash2
+} from 'lucide-react'
 import JobSiteCard from '../components/JobSiteCard'
 import AddJobSiteDialog from '../components/AddJobSiteDialog'
 import Topbar from '../components/Topbar'
@@ -117,6 +123,24 @@ export default function Home() {
                 />
               ))}
             </div>
+          ) : sites.length === 0 ? (
+            <div className='flex flex-col items-center justify-center py-24'>
+              <LucideFileExclamationPoint className='h-16 w-16 text-secondary mb-4' />
+              <h2 className='text-2xl font-bold text-base-content mb-2'>
+                No Job Sites
+              </h2>
+              <p className='text-base-content/60 mb-6'>
+                Get started by adding your first job site.
+              </p>
+              {isAdmin && (
+                <button
+                  type='button'
+                  className='btn btn-primary flex gap-2'
+                  onClick={() => setAddDialogOpen(true)}>
+                  <Plus className='h-4 w-4' /> Add Job Site
+                </button>
+              )}
+            </div>
           ) : (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
               {sites.map((site) => (
@@ -142,16 +166,8 @@ export default function Home() {
         <AddJobSiteDialog
           open={addDialogOpen}
           onOpenChange={setAddDialogOpen}
-          onSuccess={async (newSiteData) => {
-            const res = await fetch(`${API_URL}/job-sites`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(
-                newSiteData
-              )
-            })
-            const created = await res.json()
-            setSites([...sites, created])
+          onSuccess={(createdSite) => {
+            setSites((prev) => [...prev, createdSite])
           }}
         />
         {/* Category Dialog */}
