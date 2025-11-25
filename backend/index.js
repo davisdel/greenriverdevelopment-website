@@ -25,7 +25,7 @@ const upload = multer({ storage })
 
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'https://taskpro.davisdel.com', 'http://192.168.10.24'], // Vite default dev server
+    origin: ['http://localhost:5173', 'https://taskpro.davisdel.com'], // Vite default dev server
     credentials: true
   })
 )
