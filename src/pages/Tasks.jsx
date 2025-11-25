@@ -221,7 +221,7 @@ export default function Tasks() {
             task={editingTask}
             siteId={siteId}
             categories={categories}
-            onSave={handleSaveTask}
+            onSuccess={handleSaveTask}
           />
           {/* Delete confirmation dialog */}
           {deleteDialogOpen && (
