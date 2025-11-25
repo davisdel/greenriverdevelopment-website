@@ -102,10 +102,15 @@ export default function Tasks() {
   }
 
   // Filtered tasks and completed count
-  const filteredTasks =
+  const filteredTasks = (
     filterCategory === 'all'
       ? tasks
       : tasks.filter((t) => t.category_id === filterCategory)
+  ).sort((a, b) => {
+    // Sort: incomplete first, then completed
+    if (a.completed === b.completed) return 0
+    return a.completed ? 1 : -1
+  })
   const completedCount = filteredTasks.filter((t) => t.completed).length
 
   return (
