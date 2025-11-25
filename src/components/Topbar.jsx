@@ -8,8 +8,6 @@ import {
   User
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:4000/api'
-
 export default function Topbar({
   currentPageName,
   user,
@@ -30,6 +28,11 @@ export default function Topbar({
   const [formLoading, setFormLoading] = useState(false)
   const dropdownRef = useRef(null)
 
+  const header =
+    import.meta.env.DEV
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
+
   // Close dropdown on outside click
   React.useEffect(() => {
     if (!dropdownOpen) return
@@ -49,7 +52,7 @@ export default function Topbar({
     setFormLoading(true)
     setFormError('')
     try {
-      const res = await fetch(`${API_URL}/admin/login`, {
+      const res = await fetch(`${header}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginForm),
@@ -79,7 +82,7 @@ export default function Topbar({
     setFormLoading(true)
     setFormError('')
     try {
-      const res = await fetch(`${API_URL}/admin/register`, {
+      const res = await fetch(`${header}/api/admin/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registerForm),

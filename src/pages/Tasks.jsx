@@ -57,7 +57,7 @@ export default function Tasks() {
   const [categories, setCategories] = useState([])
 
   const header =
-    window.location.hostname === 'localhost'
+    import.meta.env.DEV
       ? 'http://localhost:4000'
       : 'https://taskpro.davisdel.com'
 

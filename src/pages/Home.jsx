@@ -12,7 +12,7 @@ import AddJobSiteDialog from '../components/AddJobSiteDialog'
 import Topbar from '../components/Topbar'
 
 const header =
-    window.location.hostname === 'localhost'
+    import.meta.env.DEV
       ? 'http://localhost:4000'
       : 'https://taskpro.davisdel.com'
 
