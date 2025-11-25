@@ -174,7 +174,6 @@ app.get('/api/tasks', (req, res) => {
 
 // Get tasks for a specific job site by siteId in params
 app.get('/api/tasks/:id', (req, res) => {
-
   db.all(
     'SELECT * FROM tasks WHERE site_id = ?',
     [req.params.id],
@@ -188,11 +187,14 @@ app.get('/api/tasks/:id', (req, res) => {
 app.post('/api/tasks', (req, res) => {
   const { site_id, category_id, name, completed, description, image_url } =
     req.body
+
   db.run(
     'INSERT INTO tasks (site_id, category_id, name, completed, description, image_url) VALUES (?, ?, ?, ?, ?, ?)',
     [site_id, category_id, name, completed ? 1 : 0, description, image_url],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message })
+      if (err) {
+        return res.status(500).json({ error: err.message })
+      }
       res.json({
         id: this.lastID,
         site_id,

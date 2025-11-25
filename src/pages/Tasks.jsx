@@ -79,24 +79,13 @@ export default function Tasks() {
       setTaskToDelete(null)
     }
   }
-  const handleSaveTask = async (taskData) => {
-    if (editingTask) {
-      const res = await fetch(`${API_URL}/tasks/${editingTask.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskData)
-      })
-      const updated = await res.json()
-      setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)))
-    } else {
-      const res = await fetch(`${API_URL}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...taskData, site_id: siteId })
-      })
-      const created = await res.json()
-      setTasks([...tasks, created])
-    }
+
+  // Refresh tasks after add/edit
+  const refreshTasks = () => {
+    fetch(`${API_URL}/tasks/${siteId}`)
+      .then((res) => res.json())
+      .then(setTasks)
+      .catch(() => setTasks([]))
     setTaskDialogOpen(false)
     setEditingTask(null)
   }
@@ -232,7 +221,7 @@ export default function Tasks() {
             task={editingTask}
             siteId={siteId}
             categories={categories}
-            onSuccess={handleSaveTask}
+            onSuccess={refreshTasks}
           />
           {/* Delete confirmation dialog */}
           {deleteDialogOpen && (
