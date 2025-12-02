@@ -27,7 +27,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const uploadFolder =
-  process.env.NODE_ENV === 'production'
+  process.env.MODE === 'production'
     ? '/var/www/html/uploads' // production folder for NGINX
     : path.join(__dirname, 'uploads') // local dev folder
 
@@ -48,7 +48,7 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.MODE !== 'production') {
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 }
 
