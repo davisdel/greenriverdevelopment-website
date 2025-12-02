@@ -13,15 +13,28 @@ const sqlite3 = sqlite3pkg.verbose()
 const app = express()
 const PORT = 4000
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// CORS setup
 app.use(
   cors({
     origin: ['http://localhost:5173', 'https://taskpro.davisdel.com'], // Vite default dev server
     credentials: true
   })
 )
+
+//*************************** FILE UPLOAD SETUP ***********************************
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadFolder =
+  process.env.NODE_ENV === 'production'
+    ? '/var/www/html/uploads'   // production folder for NGINX
+    : path.join(__dirname, 'uploads'); // local dev folder
+
+// Make sure folder exists
+if (!fs.existsSync(uploadFolder)) {
+  fs.mkdirSync(uploadFolder, { recursive: true });
+}
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
@@ -35,18 +48,22 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+//************************************************************************************
+
+// Body parser middleware
 app.use(express.json())
+
 // Session middleware
 app.use(
   session({
     secret: process.env.SECRET_PHRASE,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 2 } // 2 hours
+    cookie: { maxAge: 1000 * 60 * 60 * 4 } // 4 hours
   })
 )
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize SQLite DB
 const db = new sqlite3.Database('./database.sqlite', (err) => {
@@ -89,6 +106,7 @@ const createTables = () => {
     )`)
 }
 
+// Call createTables on startup
 createTables()
 
 // File upload route
