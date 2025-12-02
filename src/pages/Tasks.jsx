@@ -5,12 +5,15 @@ import TaskRow from '../components/TaskRow'
 import TaskDialog from '../components/TaskDialog'
 import Topbar from '../components/Topbar'
 
-const API_URL = 'http://localhost:4000/api'
+const header =
+    import.meta.env.DEV
+      ? 'http://localhost:4000'
+      : 'https://taskpro.davisdel.com'
 
 // Helper to get current admin user from session
 async function fetchAdminUser() {
   try {
-    const res = await fetch(`${API_URL}/admin/me`, {
+    const res = await fetch(`${header}/api/admin/me`, {
       method: 'GET',
       credentials: 'include'
     })
@@ -42,7 +45,7 @@ export default function Tasks() {
 
   // Handle logout from Topbar
   async function handleLogout() {
-    await fetch(`${API_URL}/admin/logout`, {
+    await fetch(`${header}/api/admin/logout`, {
       method: 'POST',
       credentials: 'include'
     })
@@ -63,11 +66,11 @@ export default function Tasks() {
 
   // Fetch site, tasks, categories from backend
   useEffect(() => {
-    fetch(`${API_URL}/tasks/${siteId}`)
+    fetch(`${header}/api/tasks/${siteId}`)
       .then((res) => res.json())
       .then(setTasks)
       .catch(() => setTasks([]))
-    fetch(`${API_URL}/categories`)
+    fetch(`${header}/api/categories`)
       .then((res) => res.json())
       .then(setCategories)
       .catch(() => setCategories([]))
@@ -91,7 +94,7 @@ export default function Tasks() {
 
   // CRUD logic
   const handleToggleComplete = async (task) => {
-    const res = await fetch(`${API_URL}/tasks/${task.id}`, {
+    const res = await fetch(`${header}/api/tasks/${task.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...task, completed: !task.completed })
@@ -127,7 +130,7 @@ export default function Tasks() {
       return
     }
     if (taskToDelete) {
-      await fetch(`${API_URL}/tasks/${taskToDelete.id}`, {
+      await fetch(`${header}/api/tasks/${taskToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -148,7 +151,7 @@ export default function Tasks() {
     const completedTasks = tasks.filter((t) => t.completed)
     await Promise.all(
       completedTasks.map((task) =>
-        fetch(`${API_URL}/tasks/${task.id}`, {
+        fetch(`${header}/api/tasks/${task.id}`, {
           method: 'DELETE',
           credentials: 'include'
         })
@@ -160,7 +163,7 @@ export default function Tasks() {
 
   // Refresh tasks after add/edit
   const refreshTasks = () => {
-    fetch(`${API_URL}/tasks/${siteId}`)
+    fetch(`${header}/api/tasks/${siteId}`)
       .then((res) => res.json())
       .then(setTasks)
       .catch(() => setTasks([]))
