@@ -7,9 +7,21 @@ import sqlite3pkg from 'sqlite3'
 import cors from 'cors'
 import multer from 'multer'
 import fs from 'fs'
+import { fileURLToPath } from 'url';
+import path from 'path';
 const sqlite3 = sqlite3pkg.verbose()
 const app = express()
 const PORT = 4000
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'https://taskpro.davisdel.com'], // Vite default dev server
+    credentials: true
+  })
+)
 
 // Multer setup for file uploads
 const storage = multer.diskStorage({
@@ -23,12 +35,6 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-app.use(
-  cors({
-    origin: ['http://localhost:5173', 'https://taskpro.davisdel.com'], // Vite default dev server
-    credentials: true
-  })
-)
 app.use(express.json())
 // Session middleware
 app.use(
@@ -40,7 +46,7 @@ app.use(
   })
 )
 
-app.use('/uploads', express.static('uploads'))
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize SQLite DB
 const db = new sqlite3.Database('./database.sqlite', (err) => {
