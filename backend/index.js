@@ -7,8 +7,8 @@ import sqlite3pkg from 'sqlite3'
 import cors from 'cors'
 import multer from 'multer'
 import fs from 'fs'
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { fileURLToPath } from 'url'
+import path from 'path'
 const sqlite3 = sqlite3pkg.verbose()
 const app = express()
 const PORT = 4000
@@ -23,17 +23,17 @@ app.use(
 
 //*************************** FILE UPLOAD SETUP ***********************************
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const uploadFolder =
   process.env.NODE_ENV === 'production'
-    ? '/var/www/html/uploads'   // production folder for NGINX
-    : path.join(__dirname, 'uploads'); // local dev folder
+    ? '/var/www/html/uploads' // production folder for NGINX
+    : path.join(__dirname, 'uploads') // local dev folder
 
 // Make sure folder exists
 if (!fs.existsSync(uploadFolder)) {
-  fs.mkdirSync(uploadFolder, { recursive: true });
+  fs.mkdirSync(uploadFolder, { recursive: true })
 }
 
 // Multer setup for file uploads
@@ -48,7 +48,9 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+}
 
 //************************************************************************************
 
