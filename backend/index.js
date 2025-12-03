@@ -63,7 +63,7 @@ app.use(
     secret: process.env.SECRET_PHRASE,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 4 } // 4 hours
+    cookie: { maxAge: 1000 * 60 * 60 * 24 } // 24 hours
   })
 )
 

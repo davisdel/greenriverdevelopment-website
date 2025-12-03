@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, ArrowLeft, Filter } from 'lucide-react'
+import { Plus, ArrowLeft, Filter, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TaskRow from '../components/TaskRow'
+import ReactModal from 'react-modal'
 import TaskDialog from '../components/TaskDialog'
 import Topbar from '../components/Topbar'
 
-const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
+const header = import.meta.env.DEV
+  ? 'http://localhost:4000'
+  : 'https://taskpro.davisdel.com'
 
 // Helper to get current admin user from session
 async function fetchAdminUser() {
@@ -36,6 +36,11 @@ export default function Tasks() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState(null)
   const [filterCategory, setFilterCategory] = useState('all')
+  const [descModalOpen, setDescModalOpen] = useState(false)
+  const [descModalContent, setDescModalContent] = useState({
+    name: '',
+    description: ''
+  })
 
   // Handle login/register from Topbar
   function handleLogin(type, data) {
@@ -59,10 +64,9 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([])
   const [categories, setCategories] = useState([])
 
-  const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
+  const header = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : 'https://taskpro.davisdel.com'
 
   // Fetch site, tasks, categories from backend
   useEffect(() => {
@@ -90,6 +94,12 @@ export default function Tasks() {
   const handleImageClick = (imageUrl) => {
     setModalImageUrl(imageUrl)
     setImageModalOpen(true)
+  }
+
+  // Show description modal
+  const handleShowDescription = (task) => {
+    setDescModalContent({ name: task.name, description: task.description })
+    setDescModalOpen(true)
   }
 
   // CRUD logic
@@ -171,6 +181,11 @@ export default function Tasks() {
     setEditingTask(null)
   }
 
+  // Only show categories with at least one associated task
+  const categoriesWithTasks = categories.filter((cat) =>
+    tasks.some((t) => t.category_id === cat.id)
+  )
+
   // Filtered tasks and completed count
   const filteredTasks = (
     filterCategory === 'all'
@@ -187,7 +202,7 @@ export default function Tasks() {
     <>
       <Topbar user={user} onLogin={handleLogin} onLogout={handleLogout} />
       {adminError && <div className='alert alert-error my-4'>{adminError}</div>}
-      <div className='min-h-screen py-8 px-4 sm:px-6 lg:px-8'>
+      <div className='min-h-screen bg-base-200 py-8 px-4 sm:px-6 lg:px-8'>
         <div className='max-w-7xl mx-auto'>
           <div className='mb-6'>
             <button
@@ -231,14 +246,15 @@ export default function Tasks() {
             <div className='card-body'>
               <h2 className='card-title'>Tasks</h2>
               <div className='mb-4'>
-                <div className='flex gap-2'>
+                {/* Desktop: button group, Mobile: dropdown */}
+                <div className='hidden sm:flex gap-2'>
                   <button
                     type='button'
                     className={`btn btn-outline ${filterCategory === 'all' ? 'btn-active' : ''}`}
                     onClick={() => setFilterCategory('all')}>
                     All
                   </button>
-                  {categories.map((cat) => (
+                  {categoriesWithTasks.map((cat) => (
                     <button
                       key={cat.id}
                       type='button'
@@ -247,6 +263,25 @@ export default function Tasks() {
                       {cat.name}
                     </button>
                   ))}
+                </div>
+                <div className='sm:hidden'>
+                  <select
+                    className='select select-bordered w-full'
+                    value={filterCategory}
+                    onChange={(e) =>
+                      setFilterCategory(
+                        e.target.value === 'all'
+                          ? 'all'
+                          : Number(e.target.value)
+                      )
+                    }>
+                    <option value='all'>All</option>
+                    {categoriesWithTasks.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               {filteredTasks.length === 0 ? (
@@ -266,40 +301,80 @@ export default function Tasks() {
                   )}
                 </div>
               ) : (
-                <div className='overflow-x-auto'>
-                  <table className='table table-zebra w-full'>
-                    <thead>
-                      <tr>
-                        <th></th>
-                        <th>Image</th>
-                        <th>Task Name</th>
-                        <th>Description</th>
-                        <th>Category</th>
-                        {isAdmin && <th>Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTasks.map((task) => (
-                        <TaskRow
-                          key={task.id}
-                          task={task}
-                          category={categories.find(
-                            (c) => c.id === task.category_id
-                          )}
-                          isAdmin={isAdmin}
-                          onToggleComplete={handleToggleComplete}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          onImageClick={
-                            header + task.image_url
-                              ? () => handleImageClick(header + task.image_url)
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className='overflow-x-auto'>
+                    <table
+                      className='table table-zebra w-full'
+                      style={{ tableLayout: 'auto' }}>
+                      <colgroup>
+                        <col /> {/* Checkbox */}
+                        <col /> {/* Image */}
+                        <col /> {/* Task Name */}
+                        <col style={{ minWidth: '180px', width: 'auto' }}/>{' '} {/* Description */}
+                        <col /> {/* Category */}
+                        {isAdmin && <col />} {/* Actions */}
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>Image</th>
+                          <th>Task Name</th>
+                          <th>Description</th>
+                          <th>Category</th>
+                          {isAdmin && <th>Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTasks.map((task) => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            category={categories.find(
+                              (c) => c.id === task.category_id
+                            )}
+                            isAdmin={isAdmin}
+                            onToggleComplete={handleToggleComplete}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onImageClick={
+                              header + task.image_url
+                                ? () =>
+                                    handleImageClick(header + task.image_url)
+                                : undefined
+                            }
+                            onShowDescription={() =>
+                              handleShowDescription(task)
+                            }
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <ReactModal
+                    isOpen={descModalOpen}
+                    onRequestClose={() => setDescModalOpen(false)}
+                    className='modal-box max-w-lg bg-base-100 p-6'
+                    overlayClassName='modal modal-open flex items-center justify-center'
+                    ariaHideApp={false}>
+                    <h3 className='font-bold text-lg mb-2'>
+                      {descModalContent.name}
+                    </h3>
+                    <div className='mb-4 whitespace-pre-line text-base-content'>
+                      {descModalContent.description || (
+                        <span className='text-base-content/50'>
+                          &mdash; No description &mdash;
+                        </span>
+                      )}
+                    </div>
+                    <div className='modal-action'>
+                      <button
+                        className='btn btn-secondary'
+                        onClick={() => setDescModalOpen(false)}>
+                        Close
+                      </button>
+                    </div>
+                  </ReactModal>
+                </>
               )}
             </div>
           </div>
@@ -346,18 +421,32 @@ export default function Tasks() {
               className='modal modal-open'
               onClick={() => setImageModalOpen(false)}>
               <div
-                className='modal-box max-w-2xl bg-base-100 flex flex-col items-center'
-                onClick={(e) => e.stopPropagation()}>
-                <img
-                  src={modalImageUrl}
-                  alt='Task'
-                  className='w-full h-auto rounded-lg mb-4'
-                />
-                <button
-                  className='btn btn-secondary'
-                  onClick={() => setImageModalOpen(false)}>
-                  Close
-                </button>
+                className='fixed inset-0 flex items-center justify-center bg-black/60 z-50'
+                style={{ width: '100vw', height: '100vh' }}
+                onClick={() => setImageModalOpen(false)}>
+                <div className='relative w-full h-full flex items-center justify-center'>
+                  <img
+                    src={modalImageUrl}
+                    alt='Task'
+                    className='rounded-lg object-contain w-full h-full'
+                    style={{
+                      maxWidth: '100vw',
+                      maxHeight: '100vh',
+                      display: 'block'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    className='absolute top-6 right-8 bg-black bg-opacity-60 rounded-full p-2 text-white hover:bg-opacity-80 z-60 flex items-center justify-center'
+                    style={{ fontSize: 24 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setImageModalOpen(false)
+                    }}
+                    aria-label='Close image modal'>
+                    <X className='h-6 w-6 text-error hover:cursor-pointer' />
+                  </button>
+                </div>
               </div>
             </dialog>
           )}
