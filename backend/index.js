@@ -271,7 +271,7 @@ app.delete('/api/job-sites/:id', (req, res) => {
         siteRow.image_url &&
         siteRow.image_url.startsWith('/uploads/')
       ) {
-        siteImagePath = 'uploads/' + siteRow.image_url.replace('/uploads/', '')
+        siteImagePath = path.join(uploadFolder, siteRow.image_url.replace('/uploads/', ''))
       }
 
       // Get all tasks for this job site
@@ -284,8 +284,7 @@ app.delete('/api/job-sites/:id', (req, res) => {
           // removed unused variables
           taskRows.forEach((task) => {
             if (task.image_url && task.image_url.startsWith('/uploads/')) {
-              const taskImagePath =
-                'uploads/' + task.image_url.replace('/uploads/', '')
+              const taskImagePath = path.join(uploadFolder, task.image_url.replace('/uploads/', ''))
               fs.unlink(taskImagePath, () => {}) // Ignore errors
             }
           })
@@ -407,8 +406,7 @@ app.put('/api/tasks/:id', (req, res) => {
             image_url.startsWith('/uploads/') &&
             oldImageUrl !== image_url
           ) {
-            const oldImagePath =
-              'uploads/' + oldImageUrl.replace('/uploads/', '')
+            const oldImagePath = path.join(uploadFolder, oldImageUrl.replace('/uploads/', ''))
             fs.unlink(oldImagePath, () => {}) // Ignore errors
           }
           res.json({ updated: this.changes })
@@ -427,7 +425,7 @@ app.delete('/api/tasks/:id', (req, res) => {
       if (err) return res.status(500).json({ error: err.message })
       let imagePath = null
       if (row && row.image_url && row.image_url.startsWith('/uploads/')) {
-        imagePath = 'uploads/' + row.image_url.replace('/uploads/', '')
+        imagePath = path.join(uploadFolder, row.image_url.replace('/uploads/', ''))
       }
       // Delete the task from DB
       db.run(
