@@ -11,11 +11,9 @@ import JobSiteCard from '../components/JobSiteCard'
 import AddJobSiteDialog from '../components/AddJobSiteDialog'
 import Topbar from '../components/Topbar'
 
-const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
-
+const header = import.meta.env.DEV
+  ? 'http://localhost:4000'
+  : 'https://taskpro.davisdel.com'
 
 // Helper to get current admin user from session
 async function fetchAdminUser() {
@@ -45,6 +43,7 @@ export default function Home() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [sitesLoading, setSitesLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Fetch job sites, tasks, categories from backend
   useEffect(() => {
@@ -192,6 +191,18 @@ export default function Home() {
               </div>
             )}
           </div>
+          {/* Search Bar */}
+          <div className='mb-6'>
+            <div className='form-control w-full max-w-md'>
+              <input
+                type='text'
+                placeholder='Search job sites...'
+                className='input input-bordered input-primary w-full'
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           {sitesLoading ? (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
               {[1, 2, 3].map((i) => (
@@ -201,7 +212,9 @@ export default function Home() {
                 />
               ))}
             </div>
-          ) : sites.length === 0 ? (
+          ) : sites.filter((site) =>
+              site.name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length === 0 ? (
             <div className='flex flex-col items-center justify-center py-24'>
               <LucideFileExclamationPoint className='h-16 w-16 text-secondary mb-4' />
               <h2 className='text-2xl font-bold text-base-content mb-2'>
@@ -231,23 +244,32 @@ export default function Home() {
             </div>
           ) : (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-              {sites.map((site) => (
-                <div key={site.id} className='relative group'>
-                  <JobSiteCard
-                    site={site}
-                    taskCounts={getTaskCountsForSite(site.id)}
-                    onClick={() => navigate('/tasks/' + site.id)}
-                  />
-                  {isAdmin && (
-                    <button
-                      type='button'
-                      className='btn btn-error btn-sm absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg flex gap-1'
-                      onClick={(e) => handleDeleteSite(site, e)}>
-                      <Trash2 className='h-4 w-4' />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {sites
+                .filter((site) =>
+                  site.name.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((site) => (
+                  <div
+                    key={site.id}
+                    className='relative group flex flex-col h-full md:h-full lg:h-full'
+                    style={{ minHeight: '0' }}>
+                    <div className='flex-1 flex flex-col'>
+                      <JobSiteCard
+                        site={site}
+                        taskCounts={getTaskCountsForSite(site.id)}
+                        onClick={() => navigate('/tasks/' + site.id)}
+                      />
+                    </div>
+                    {isAdmin && (
+                      <button
+                        type='button'
+                        className='btn btn-error btn-sm absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg flex gap-1'
+                        onClick={(e) => handleDeleteSite(site, e)}>
+                        <Trash2 className='h-4 w-4' />
+                      </button>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>

@@ -20,7 +20,7 @@ export default function JobSiteCard({ site, taskCounts, onClick }) {
 
   return (
     <div
-      className='card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all border-primary border-2'
+      className='card bg-base-100 shadow-lg cursor-pointer hover:shadow-xl transition-all border-primary border-2 h-full'
       onClick={onClick}>
       <div className='relative h-48 bg-gradient-to-br from-primary/10 to-base-300 overflow-hidden'>
         {site.image_url ? (

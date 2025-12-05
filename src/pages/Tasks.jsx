@@ -35,12 +35,22 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState(null)
-  const [filterCategory, setFilterCategory] = useState('all')
+  const [filterCategory, setFilterCategoryRaw] = useState('all')
   const [descModalOpen, setDescModalOpen] = useState(false)
   const [descModalContent, setDescModalContent] = useState({
     name: '',
     description: ''
   })
+
+  // Persist filter selection in localStorage
+  const FILTER_KEY = 'tasks_filter_category'
+  // Helper to set filter and persist
+  const setFilterCategory = (cat) => {
+    setFilterCategoryRaw(cat)
+    try {
+      window.localStorage.setItem(FILTER_KEY, cat)
+    } catch {}
+  }
 
   // Handle login/register from Topbar
   function handleLogin(type, data) {
@@ -76,7 +86,21 @@ export default function Tasks() {
       .catch(() => setTasks([]))
     fetch(`${header}/api/categories`)
       .then((res) => res.json())
-      .then(setCategories)
+      .then((cats) => {
+        setCategories(cats)
+        // On categories load, restore filter from localStorage
+        let stored = 'all'
+        try {
+          stored = window.localStorage.getItem(FILTER_KEY) || 'all'
+        } catch {}
+        // If stored filter matches a category, use it; else 'all'
+        const valid =
+          stored === 'all' ||
+          cats.some((cat) => String(cat.id) === String(stored))
+        setFilterCategoryRaw(
+          valid ? (stored === 'all' ? 'all' : Number(stored)) : 'all'
+        )
+      })
       .catch(() => setCategories([]))
     // Check admin session and set user info from /admin/me
     fetchAdminUser().then((u) => {
@@ -310,7 +334,10 @@ export default function Tasks() {
                         <col /> {/* Checkbox */}
                         <col /> {/* Image */}
                         <col /> {/* Task Name */}
-                        <col style={{ minWidth: '180px', width: 'auto' }}/>{' '} {/* Description */}
+                        <col
+                          style={{ minWidth: '180px', width: 'auto' }}
+                        />{' '}
+                        {/* Description */}
                         <col /> {/* Category */}
                         {isAdmin && <col />} {/* Actions */}
                       </colgroup>
