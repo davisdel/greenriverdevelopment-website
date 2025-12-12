@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
+import imageCompression from 'browser-image-compression'
 import { Upload, Loader2 } from 'lucide-react'
 
-const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
+const header = import.meta.env.DEV
+  ? 'http://localhost:4000'
+  : 'https://taskpro.davisdel.com'
 
 export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
   const [name, setName] = useState('')
@@ -17,9 +17,15 @@ export default function AddJobSiteDialog({ open, onOpenChange, onSuccess }) {
     try {
       let imageUrl = ''
       if (imageFile) {
+        // Compress image before upload
+        const compressedFile = await imageCompression(imageFile, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true
+        })
         // Upload image to backend
         const formData = new FormData()
-        formData.append('file', imageFile)
+        formData.append('file', compressedFile)
         const res = await fetch(`${header}/api/upload`, {
           method: 'POST',
           body: formData

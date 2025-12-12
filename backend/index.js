@@ -239,11 +239,26 @@ app.delete('/api/admin/users/:id', requireAdminSession, (req, res) => {
 })
 
 // API routes
+
+// Get all job sites
 app.get('/api/job-sites', (req, res) => {
   db.all('SELECT * FROM job_sites', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message })
     res.json(rows)
   })
+})
+
+// Get a job site by id
+app.get('/api/job-sites/:id', (req, res) => {
+  db.get(
+    'SELECT * FROM job_sites WHERE id = ?',
+    [req.params.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message })
+      if (!row) return res.status(404).json({ error: 'Job site not found' })
+      res.json(row)
+    }
+  )
 })
 
 app.post('/api/job-sites', (req, res) => {
@@ -258,6 +273,51 @@ app.post('/api/job-sites', (req, res) => {
   )
 })
 
+// Update a job site (admin only)
+app.put(
+  '/api/job-sites/:id',
+  requireAdminSession,
+  upload.single('image'),
+  (req, res) => {
+    const { name } = req.body
+    // Get current job site info
+    db.get(
+      'SELECT * FROM job_sites WHERE id = ?',
+      [req.params.id],
+      (err, site) => {
+        if (err) return res.status(500).json({ error: err.message })
+        if (!site) return res.status(404).json({ error: 'Job site not found' })
+
+        let image_url = site.image_url
+        // If a new image is uploaded, update image_url and delete old image if local
+        if (req.file) {
+          image_url = `/uploads/${req.file.filename}`
+          if (site.image_url && site.image_url.startsWith('/uploads/')) {
+            const oldImagePath = path.join(
+              uploadFolder,
+              site.image_url.replace('/uploads/', '')
+            )
+            fs.unlink(oldImagePath, () => {}) // Ignore errors
+          }
+        }
+
+        db.run(
+          'UPDATE job_sites SET name = ?, image_url = ? WHERE id = ?',
+          [name || site.name, image_url, req.params.id],
+          function (err2) {
+            if (err2) return res.status(500).json({ error: err2.message })
+            res.json({
+              id: Number(req.params.id),
+              name: name || site.name,
+              image_url
+            })
+          }
+        )
+      }
+    )
+  }
+)
+
 app.delete('/api/job-sites/:id', (req, res) => {
   // Get job site image
   db.get(
@@ -271,7 +331,10 @@ app.delete('/api/job-sites/:id', (req, res) => {
         siteRow.image_url &&
         siteRow.image_url.startsWith('/uploads/')
       ) {
-        siteImagePath = path.join(uploadFolder, siteRow.image_url.replace('/uploads/', ''))
+        siteImagePath = path.join(
+          uploadFolder,
+          siteRow.image_url.replace('/uploads/', '')
+        )
       }
 
       // Get all tasks for this job site
@@ -284,7 +347,10 @@ app.delete('/api/job-sites/:id', (req, res) => {
           // removed unused variables
           taskRows.forEach((task) => {
             if (task.image_url && task.image_url.startsWith('/uploads/')) {
-              const taskImagePath = path.join(uploadFolder, task.image_url.replace('/uploads/', ''))
+              const taskImagePath = path.join(
+                uploadFolder,
+                task.image_url.replace('/uploads/', '')
+              )
               fs.unlink(taskImagePath, () => {}) // Ignore errors
             }
           })
@@ -406,7 +472,10 @@ app.put('/api/tasks/:id', (req, res) => {
             image_url.startsWith('/uploads/') &&
             oldImageUrl !== image_url
           ) {
-            const oldImagePath = path.join(uploadFolder, oldImageUrl.replace('/uploads/', ''))
+            const oldImagePath = path.join(
+              uploadFolder,
+              oldImageUrl.replace('/uploads/', '')
+            )
             fs.unlink(oldImagePath, () => {}) // Ignore errors
           }
           res.json({ updated: this.changes })
@@ -425,7 +494,10 @@ app.delete('/api/tasks/:id', (req, res) => {
       if (err) return res.status(500).json({ error: err.message })
       let imagePath = null
       if (row && row.image_url && row.image_url.startsWith('/uploads/')) {
-        imagePath = path.join(uploadFolder, row.image_url.replace('/uploads/', ''))
+        imagePath = path.join(
+          uploadFolder,
+          row.image_url.replace('/uploads/', '')
+        )
       }
       // Delete the task from DB
       db.run(

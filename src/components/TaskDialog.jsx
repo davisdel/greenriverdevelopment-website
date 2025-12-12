@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import imageCompression from 'browser-image-compression'
 import { Upload, Loader2 } from 'lucide-react'
 
-const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
+const header = import.meta.env.DEV
+  ? 'http://localhost:4000'
+  : 'https://taskpro.davisdel.com'
 
 export default function TaskDialog({
   open,
@@ -49,9 +49,15 @@ export default function TaskDialog({
     try {
       let imageUrl = formData.image_url
       if (imageFile) {
+        // Compress image before upload
+        const compressedFile = await imageCompression(imageFile, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true
+        })
         // Upload image to backend
         const formDataImg = new FormData()
-        formDataImg.append('file', imageFile)
+        formDataImg.append('file', compressedFile)
         const res = await fetch(`${header}/api/upload`, {
           method: 'POST',
           body: formDataImg

@@ -36,11 +36,21 @@ export default function Tasks() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState(null)
   const [filterCategory, setFilterCategoryRaw] = useState('all')
+  const HIDE_COMPLETED_KEY = 'tasks_hide_completed'
+  const [hideCompleted, setHideCompletedRaw] = useState(false)
+  // Helper to set hideCompleted and persist
+  const setHideCompleted = (val) => {
+    setHideCompletedRaw(val)
+    try {
+      window.localStorage.setItem(HIDE_COMPLETED_KEY, val ? '1' : '0')
+    } catch {}
+  }
   const [descModalOpen, setDescModalOpen] = useState(false)
   const [descModalContent, setDescModalContent] = useState({
     name: '',
     description: ''
   })
+  const [siteName, setSiteName] = useState('')
 
   // Persist filter selection in localStorage
   const FILTER_KEY = 'tasks_filter_category'
@@ -102,6 +112,16 @@ export default function Tasks() {
         )
       })
       .catch(() => setCategories([]))
+    // Fetch job site name
+    fetch(`${header}/api/job-sites/${siteId}`)
+      .then((res) => res.json())
+      .then((site) => setSiteName(site?.name || ''))
+      .catch(() => setSiteName(''))
+    // Restore hideCompleted from localStorage
+    try {
+      const storedHide = window.localStorage.getItem(HIDE_COMPLETED_KEY)
+      setHideCompletedRaw(storedHide === '1')
+    } catch {}
     // Check admin session and set user info from /admin/me
     fetchAdminUser().then((u) => {
       if (u && u.username) {
@@ -211,16 +231,25 @@ export default function Tasks() {
   )
 
   // Filtered tasks and completed count
-  const filteredTasks = (
+  let filteredTasks =
     filterCategory === 'all'
       ? tasks
       : tasks.filter((t) => t.category_id === filterCategory)
-  ).sort((a, b) => {
+  if (hideCompleted) {
+    filteredTasks = filteredTasks.filter((t) => !t.completed)
+  }
+  filteredTasks = filteredTasks.sort((a, b) => {
     // Sort: incomplete first, then completed
     if (a.completed === b.completed) return 0
     return a.completed ? 1 : -1
   })
-  const completedCount = filteredTasks.filter((t) => t.completed).length
+  // Total and completed count should always reflect all tasks in the current filter, not just visible ones
+  const filteredAllTasks =
+    filterCategory === 'all'
+      ? tasks
+      : tasks.filter((t) => t.category_id === filterCategory)
+  const completedCount = filteredAllTasks.filter((t) => t.completed).length
+  const totalCount = filteredAllTasks.length
 
   return (
     <>
@@ -241,7 +270,7 @@ export default function Tasks() {
             <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
               <div>
                 <p className='text-slate-600'>
-                  {completedCount} of {filteredTasks.length} tasks completed
+                  {completedCount} of {totalCount} tasks completed
                 </p>
               </div>
               {isAdmin && (
@@ -268,7 +297,7 @@ export default function Tasks() {
           </div>
           <div className='card bg-base-100 shadow mb-8'>
             <div className='card-body'>
-              <h2 className='card-title'>Tasks</h2>
+              <h2 className='card-title'>{siteName.toUpperCase()} - Tasks</h2>
               <div className='mb-4'>
                 {/* Desktop: button group, Mobile: dropdown */}
                 <div className='hidden sm:flex gap-2'>
@@ -306,6 +335,21 @@ export default function Tasks() {
                       </option>
                     ))}
                   </select>
+                </div>
+                {/* Hide completed checkbox */}
+                <div className='mt-4 flex items-center gap-2'>
+                  <input
+                    type='checkbox'
+                    className='checkbox checkbox-primary'
+                    id='hide-completed-checkbox'
+                    checked={hideCompleted}
+                    onChange={(e) => setHideCompleted(e.target.checked)}
+                  />
+                  <label
+                    htmlFor='hide-completed-checkbox'
+                    className='cursor-pointer select-none'>
+                    Hide completed tasks
+                  </label>
                 </div>
               </div>
               {filteredTasks.length === 0 ? (
@@ -464,14 +508,14 @@ export default function Tasks() {
                     onClick={(e) => e.stopPropagation()}
                   />
                   <button
-                    className='absolute top-6 right-8 bg-black bg-opacity-60 rounded-full p-2 text-white hover:bg-opacity-80 z-60 flex items-center justify-center'
+                    className='absolute cursor-pointer top-6 right-8 bg-black bg-opacity-60 rounded-full p-2 text-white hover:bg-opacity-80 z-60 flex items-center justify-center'
                     style={{ fontSize: 24 }}
                     onClick={(e) => {
                       e.stopPropagation()
                       setImageModalOpen(false)
                     }}
                     aria-label='Close image modal'>
-                    <X className='h-6 w-6 text-error hover:cursor-pointer' />
+                    <X className='h-6 w-6 text-error' />
                   </button>
                 </div>
               </div>

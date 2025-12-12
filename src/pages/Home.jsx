@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import JobSiteCard from '../components/JobSiteCard'
 import AddJobSiteDialog from '../components/AddJobSiteDialog'
+import EditJobSiteDialog from '../components/EditJobSiteDialog'
 import Topbar from '../components/Topbar'
 
 const header = import.meta.env.DEV
@@ -40,6 +41,8 @@ export default function Home() {
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [siteToDelete, setSiteToDelete] = useState(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [siteToEdit, setSiteToEdit] = useState(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [sitesLoading, setSitesLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
@@ -136,6 +139,12 @@ export default function Home() {
       setDeleteDialogOpen(false)
       setSiteToDelete(null)
     }
+  }
+  // Handle edit site
+  const handleEditSite = (site, e) => {
+    if (e) e.stopPropagation()
+    setSiteToEdit(site)
+    setEditDialogOpen(true)
   }
 
   return (
@@ -249,26 +258,65 @@ export default function Home() {
                   site.name.toLowerCase().includes(searchTerm.toLowerCase())
                 )
                 .map((site) => (
-                  <div
-                    key={site.id}
-                    className='relative group flex flex-col h-full md:h-full lg:h-full'
-                    style={{ minHeight: '0' }}>
-                    <div className='flex-1 flex flex-col'>
-                      <JobSiteCard
-                        site={site}
-                        taskCounts={getTaskCountsForSite(site.id)}
-                        onClick={() => navigate('/tasks/' + site.id)}
-                      />
+                  <>
+                    <div
+                      key={site.id}
+                      className='relative group flex flex-col h-full md:h-full lg:h-full'
+                      style={{ minHeight: '0' }}>
+                      <div className='flex-1 flex flex-col'>
+                        <JobSiteCard
+                          site={site}
+                          taskCounts={getTaskCountsForSite(site.id)}
+                          onClick={() => navigate('/tasks/' + site.id)}
+                        />
+                      </div>
+                      {isAdmin && (
+                        <>
+                          {/* Always visible on mobile, hover on desktop */}
+                          <div className='absolute top-2 right-2 flex gap-1 sm:hidden'>
+                            <button
+                              type='button'
+                              className='btn btn-sm btn-outline btn-primary shadow-lg'
+                              onClick={(e) => handleEditSite(site, e)}>
+                              Edit
+                            </button>
+                            <button
+                              type='button'
+                              className='btn btn-error btn-sm shadow-lg flex gap-1'
+                              onClick={(e) => handleDeleteSite(site, e)}>
+                              <Trash2 className='h-4 w-4' />
+                            </button>
+                          </div>
+                          <div className='absolute top-2 right-2 hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                            <button
+                              type='button'
+                              className='btn btn-sm btn-outline btn-primary shadow-lg'
+                              onClick={(e) => handleEditSite(site, e)}>
+                              Edit
+                            </button>
+                            <button
+                              type='button'
+                              className='btn btn-error btn-sm shadow-lg flex gap-1'
+                              onClick={(e) => handleDeleteSite(site, e)}>
+                              <Trash2 className='h-4 w-4' />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {isAdmin && (
-                      <button
-                        type='button'
-                        className='btn btn-error btn-sm absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg flex gap-1'
-                        onClick={(e) => handleDeleteSite(site, e)}>
-                        <Trash2 className='h-4 w-4' />
-                      </button>
-                    )}
-                  </div>
+                    <EditJobSiteDialog
+                      open={editDialogOpen}
+                      onOpenChange={setEditDialogOpen}
+                      site={siteToEdit}
+                      onSuccess={(updated) => {
+                        setSites((prev) =>
+                          prev.map((s) =>
+                            s.id === updated.id ? { ...s, ...updated } : s
+                          )
+                        )
+                      }}
+                    />
+                  </>
                 ))}
             </div>
           )}
