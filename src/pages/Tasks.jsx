@@ -38,6 +38,7 @@ export default function Tasks() {
   const [filterCategory, setFilterCategoryRaw] = useState('all')
   const HIDE_COMPLETED_KEY = 'tasks_hide_completed'
   const [hideCompleted, setHideCompletedRaw] = useState(false)
+  const [language, setLanguage] = useState('en')
   // Helper to set hideCompleted and persist
   const setHideCompleted = (val) => {
     setHideCompletedRaw(val)
@@ -83,10 +84,6 @@ export default function Tasks() {
 
   const [tasks, setTasks] = useState([])
   const [categories, setCategories] = useState([])
-
-  const header = import.meta.env.DEV
-    ? 'http://localhost:4000'
-    : 'https://taskpro.davisdel.com'
 
   // Fetch site, tasks, categories from backend
   useEffect(() => {
@@ -253,7 +250,12 @@ export default function Tasks() {
 
   return (
     <>
-      <Topbar user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      <Topbar
+        user={user}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        onToggle={setLanguage}
+      />
       {adminError && <div className='alert alert-error my-4'>{adminError}</div>}
       <div className='min-h-screen bg-base-200 py-8 px-4 sm:px-6 lg:px-8'>
         <div className='max-w-7xl mx-auto'>
@@ -416,6 +418,7 @@ export default function Tasks() {
                             onShowDescription={() =>
                               handleShowDescription(task)
                             }
+                            language={language}
                           />
                         ))}
                       </tbody>

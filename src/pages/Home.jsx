@@ -47,6 +47,9 @@ export default function Home() {
   const [sitesLoading, setSitesLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategoryId, setSelectedCategoryId] = useState(() => {
+    return localStorage.getItem('selectedCategoryId') || ''
+  })
 
   // Fetch job sites, tasks, categories from backend
   useEffect(() => {
@@ -200,8 +203,26 @@ export default function Home() {
               </div>
             )}
           </div>
-          {/* Search Bar */}
-          <div className='mb-6'>
+          {/* Category Dropdown + Search Bar */}
+          <div className='mb-6 flex flex-col md:flex-row gap-4 items-start'>
+            {/* Category Dropdown */}
+            <div className='form-control w-full max-w-xs'>
+              <select
+                className='select select-bordered select-primary w-full'
+                value={selectedCategoryId || ''}
+                onChange={(e) => {
+                  setSelectedCategoryId(e.target.value)
+                  localStorage.setItem('selectedCategoryId', e.target.value)
+                }}>
+                <option value=''>All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Search Bar */}
             <div className='form-control w-full max-w-md'>
               <input
                 type='text'
@@ -221,9 +242,21 @@ export default function Home() {
                 />
               ))}
             </div>
-          ) : sites.filter((site) =>
-              site.name.toLowerCase().includes(searchTerm.toLowerCase())
-            ).length === 0 ? (
+          ) : sites.filter((site) => {
+              // Filter by search term
+              const matchesSearch = site.name
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase())
+              // Filter by selected category
+              if (!selectedCategoryId) return matchesSearch
+              // Only show sites that have at least one task matching the selected category
+              const hasTaskInCategory = tasks.some(
+                (t) =>
+                  t.site_id === site.id &&
+                  String(t.category_id) === String(selectedCategoryId)
+              )
+              return matchesSearch && hasTaskInCategory
+            }).length === 0 ? (
             <div className='flex flex-col items-center justify-center py-24'>
               <LucideFileExclamationPoint className='h-16 w-16 text-secondary mb-4' />
               <h2 className='text-2xl font-bold text-base-content mb-2'>
@@ -254,13 +287,24 @@ export default function Home() {
           ) : (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
               {sites
-                .filter((site) =>
-                  site.name.toLowerCase().includes(searchTerm.toLowerCase())
-                )
+                .filter((site) => {
+                  // Filter by search term
+                  const matchesSearch = site.name
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase())
+                  // Filter by selected category
+                  if (!selectedCategoryId) return matchesSearch
+                  // Only show sites that have at least one task matching the selected category
+                  const hasTaskInCategory = tasks.some(
+                    (t) =>
+                      t.site_id === site.id &&
+                      String(t.category_id) === String(selectedCategoryId)
+                  )
+                  return matchesSearch && hasTaskInCategory
+                })
                 .map((site) => (
-                  <>
+                  <div key={site.id}>
                     <div
-                      key={site.id}
                       className='relative group flex flex-col h-full md:h-full lg:h-full'
                       style={{ minHeight: '0' }}>
                       <div className='flex-1 flex flex-col'>
@@ -316,7 +360,7 @@ export default function Home() {
                         )
                       }}
                     />
-                  </>
+                  </div>
                 ))}
             </div>
           )}

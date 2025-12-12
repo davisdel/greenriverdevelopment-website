@@ -9,6 +9,7 @@ import multer from 'multer'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import path from 'path'
+import translate from 'translate-google'
 const sqlite3 = sqlite3pkg.verbose()
 const app = express()
 const PORT = 4000
@@ -77,7 +78,7 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
   }
 })
 
-// Create tables
+// Create tables and add Spanish columns if missing
 const createTables = () => {
   db.run(`CREATE TABLE IF NOT EXISTS job_sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,8 +91,10 @@ const createTables = () => {
     site_id INTEGER,
     category_id INTEGER,
     name TEXT NOT NULL,
+    name_es TEXT,
     completed INTEGER DEFAULT 0,
     description TEXT,
+    description_es TEXT,
     image_url TEXT,
     FOREIGN KEY(site_id) REFERENCES job_sites(id) ON DELETE CASCADE
   )`)
@@ -106,6 +109,21 @@ const createTables = () => {
       salt TEXT NOT NULL,
       created_at TEXT
     )`)
+
+  // Add Spanish columns to tasks if they do not exist (for migrations)
+  db.get('PRAGMA table_info(tasks)', (err, info) => {
+    if (err) return
+    db.all('PRAGMA table_info(tasks)', (err2, columns) => {
+      if (err2) return
+      const colNames = columns.map((c) => c.name)
+      if (!colNames.includes('name_es')) {
+        db.run('ALTER TABLE tasks ADD COLUMN name_es TEXT')
+      }
+      if (!colNames.includes('description_es')) {
+        db.run('ALTER TABLE tasks ADD COLUMN description_es TEXT')
+      }
+    })
+  })
 }
 
 // Call createTables on startup
@@ -396,11 +414,13 @@ app.get('/api/tasks', (req, res) => {
   if (siteId) {
     db.all('SELECT * FROM tasks WHERE site_id = ?', [siteId], (err, rows) => {
       if (err) return res.status(500).json({ error: err.message })
+      // Spanish fields included by default
       res.json(rows)
     })
   } else {
     db.all('SELECT * FROM tasks', [], (err, rows) => {
       if (err) return res.status(500).json({ error: err.message })
+      // Spanish fields included by default
       res.json(rows)
     })
   }
@@ -413,33 +433,53 @@ app.get('/api/tasks/:id', (req, res) => {
     [req.params.id],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message })
+      // Spanish fields included by default
       res.json(rows)
     }
   )
 })
 
-app.post('/api/tasks', (req, res) => {
+app.post('/api/tasks', async (req, res) => {
   const { site_id, category_id, name, completed, description, image_url } =
     req.body
-
-  db.run(
-    'INSERT INTO tasks (site_id, category_id, name, completed, description, image_url) VALUES (?, ?, ?, ?, ?, ?)',
-    [site_id, category_id, name, completed ? 1 : 0, description, image_url],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message })
-      }
-      res.json({
-        id: this.lastID,
+  try {
+    // Translate name and description to Spanish
+    const [name_es, description_es] = await Promise.all([
+      name ? translate(name, { to: 'es' }) : '',
+      description ? translate(description, { to: 'es' }) : ''
+    ])
+    db.run(
+      'INSERT INTO tasks (site_id, category_id, name, name_es, completed, description, description_es, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
         site_id,
         category_id,
         name,
-        completed,
+        name_es,
+        completed ? 1 : 0,
         description,
+        description_es,
         image_url
-      })
-    }
-  )
+      ],
+      function (err) {
+        if (err) {
+          return res.status(500).json({ error: err.message })
+        }
+        res.json({
+          id: this.lastID,
+          site_id,
+          category_id,
+          name,
+          name_es,
+          completed,
+          description,
+          description_es,
+          image_url
+        })
+      }
+    )
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
 
 app.put('/api/tasks/:id', (req, res) => {

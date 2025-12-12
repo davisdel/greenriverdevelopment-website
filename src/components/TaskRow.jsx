@@ -8,16 +8,21 @@ export default function TaskRow({
   onToggleComplete,
   onEdit,
   onDelete,
-  onImageClick
+  onImageClick,
+  language
 }) {
   const [descModalOpen, setDescModalOpen] = useState(false)
   const header = import.meta.env.DEV
     ? 'http://localhost:4000'
     : 'https://taskpro.davisdel.com'
 
-  // Truncate description if too long
+  // Truncate description if too long, use language prop
   const MAX_DESC = 80
-  const desc = task.description || ''
+  const name = language === 'es' && task.name_es ? task.name_es : task.name
+  const desc =
+    language === 'es' && task.description_es
+      ? task.description_es
+      : task.description || ''
   const truncatedDesc =
     desc.length > MAX_DESC ? (
       <>
@@ -59,8 +64,8 @@ export default function TaskRow({
         <td className='break-words whitespace-pre-line align-middle'>
           <span
             className={`font-medium text-lg ${task.completed ? 'line-through text-secondary' : 'text-primary'}`}
-            title={task.name}>
-            {task.name}
+            title={name}>
+            {name}
           </span>
         </td>
         <td className='break-words whitespace-pre-line align-middle max-w-xs'>

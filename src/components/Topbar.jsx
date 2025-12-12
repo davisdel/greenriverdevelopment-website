@@ -13,9 +13,14 @@ export default function Topbar({
   user,
   loading,
   onLogout,
-  onLogin // still used for parent update after login/register
+  onLogin, // still used for parent update after login/register
+  onToggle
 }) {
   const isAdmin = user?.role === 'admin'
+  // Language toggle state
+  const [lang, setLang] = useState(() => {
+    return localStorage.getItem('taskpro_language') || 'en'
+  })
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [tab, setTab] = useState('login')
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
@@ -28,10 +33,9 @@ export default function Topbar({
   const [formLoading, setFormLoading] = useState(false)
   const dropdownRef = useRef(null)
 
-  const header =
-    import.meta.env.DEV
-      ? 'http://localhost:4000'
-      : 'https://taskpro.davisdel.com'
+  const header = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : 'https://taskpro.davisdel.com'
 
   // Close dropdown on outside click
   React.useEffect(() => {
@@ -106,6 +110,14 @@ export default function Topbar({
     }
   }
 
+  // Proper toggler handler
+  const handleToggle = () => {
+    const newLang = lang === 'en' ? 'es' : 'en'
+    setLang(newLang)
+    localStorage.setItem('taskpro_language', newLang)
+    if (onToggle) onToggle(newLang)
+  }
+
   return (
     <nav className='bg-base-100 border-b border-base-200 shadow-sm sticky top-0 z-50'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -141,7 +153,20 @@ export default function Topbar({
             </div>
           </div>
 
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-4'>
+            {/* Language Toggle */}
+            <div className='form-control flex flex-row items-center gap-2'>
+              <span className='text-xs font-medium'>EN</span>
+              <input
+                type='checkbox'
+                className='toggle toggle-primary'
+                checked={lang === 'es'}
+                onChange={handleToggle}
+                aria-label='Toggle language'
+              />
+              <span className='text-xs font-medium'>ES</span>
+            </div>
+            {/* ...existing code for user/login/logout... */}
             {loading ? (
               <div className='h-9 w-20 bg-slate-200 animate-pulse rounded-md' />
             ) : user ? (
