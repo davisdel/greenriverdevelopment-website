@@ -38,7 +38,14 @@ export default function Tasks() {
   const [filterCategory, setFilterCategoryRaw] = useState('all')
   const HIDE_COMPLETED_KEY = 'tasks_hide_completed'
   const [hideCompleted, setHideCompletedRaw] = useState(false)
-  const [language, setLanguage] = useState('en')
+  // Initialize language from localStorage
+  const [language, setLanguage] = useState(() => {
+    try {
+      return window.localStorage.getItem('taskpro_language') || 'en'
+    } catch {
+      return 'en'
+    }
+  })
   // Helper to set hideCompleted and persist
   const setHideCompleted = (val) => {
     setHideCompletedRaw(val)
@@ -87,6 +94,19 @@ export default function Tasks() {
 
   // Fetch site, tasks, categories from backend
   useEffect(() => {
+    // On mount, notify Topbar/parent of current language
+    setLanguage((lang) => {
+      if (typeof lang === 'string' && lang !== '') {
+        // If Topbar's onToggle is set, call it
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          // Custom event for future extensibility (not required, but for global sync)
+          window.dispatchEvent(
+            new CustomEvent('taskpro_language_change', { detail: lang })
+          )
+        }
+      }
+      return lang
+    })
     fetch(`${header}/api/tasks/${siteId}`)
       .then((res) => res.json())
       .then(setTasks)
@@ -385,7 +405,7 @@ export default function Tasks() {
                         />{' '}
                         {/* Description */}
                         <col /> {/* Category */}
-                        {isAdmin && <col />} {/* Actions */}
+                        <col /> {/* Actions */}
                       </colgroup>
                       <thead>
                         <tr>
@@ -394,7 +414,7 @@ export default function Tasks() {
                           <th>Task Name</th>
                           <th>Description</th>
                           <th>Category</th>
-                          {isAdmin && <th>Actions</th>}
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>

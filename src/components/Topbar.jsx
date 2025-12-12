@@ -96,13 +96,6 @@ export default function Topbar({
       if (!res.ok) throw new Error(data.error || 'Registration failed')
       setDropdownOpen(false)
       setRegisterForm({ username: '', password: '', register_code: '' })
-      // Set user session in parent
-      if (onLogin)
-        onLogin('register', {
-          ...data,
-          role: 'admin',
-          email: data.username // for display in topbar
-        })
     } catch (err) {
       setFormError(err.message || 'Registration failed')
     } finally {

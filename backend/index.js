@@ -109,7 +109,16 @@ const createTables = () => {
       salt TEXT NOT NULL,
       created_at TEXT
     )`)
-
+  db.run(`CREATE TABLE IF NOT EXISTS task_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    comment_es TEXT,
+    image_url TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+  )`)
   // Add Spanish columns to tasks if they do not exist (for migrations)
   db.get('PRAGMA table_info(tasks)', (err, info) => {
     if (err) return
@@ -256,7 +265,60 @@ app.delete('/api/admin/users/:id', requireAdminSession, (req, res) => {
   )
 })
 
-// API routes
+// Add a comment to a task
+app.post('/api/tasks/:taskId/comments', async (req, res) => {
+  const { name, comment, image_url } = req.body
+  const { taskId } = req.params
+
+  if (!name || !comment) {
+    return res.status(400).json({ error: 'Name and comment are required' })
+  }
+
+  // Detect language and translate
+  var comment_en = comment
+  var comment_es
+
+  try {
+    // Use translate-google's detection
+    await translate(comment, { to: 'es' }).then((translated) => {
+      comment_es = translated
+    })
+    await translate(comment, { to: 'en' }).then((translated) => {
+      comment_en = translated
+    })
+  } catch (err) {
+    console.error('Translation error:', err)
+  }
+
+  db.run(
+    'INSERT INTO task_comments (task_id, name, comment, comment_es, image_url) VALUES (?, ?, ?, ?, ?)',
+    [taskId, name, comment_en, comment_es, image_url],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message })
+      res.json({
+        id: this.lastID,
+        task_id: taskId,
+        name,
+        comment: comment_en,
+        comment_es,
+        image_url
+      })
+    }
+  )
+})
+
+// Get all comments for a task
+app.get('/api/tasks/:taskId/comments', (req, res) => {
+  const { taskId } = req.params
+  db.all(
+    'SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC',
+    [taskId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message })
+      res.json(rows)
+    }
+  )
+})
 
 // Get all job sites
 app.get('/api/job-sites', (req, res) => {
@@ -355,14 +417,13 @@ app.delete('/api/job-sites/:id', (req, res) => {
         )
       }
 
-      // Get all tasks for this job site
+      // Get all tasks for this job site (need id and image_url)
       db.all(
-        'SELECT image_url FROM tasks WHERE site_id = ?',
+        'SELECT id, image_url FROM tasks WHERE site_id = ?',
         [req.params.id],
         (err2, taskRows) => {
           if (err2) return res.status(500).json({ error: err2.message })
           // Delete all task images
-          // removed unused variables
           taskRows.forEach((task) => {
             if (task.image_url && task.image_url.startsWith('/uploads/')) {
               const taskImagePath = path.join(
@@ -373,35 +434,65 @@ app.delete('/api/job-sites/:id', (req, res) => {
             }
           })
 
-          // Delete all tasks for this job site
-          db.run(
-            'DELETE FROM tasks WHERE site_id = ?',
-            [req.params.id],
-            function (err3) {
-              if (err3) return res.status(500).json({ error: err3.message })
-
-              // Delete the job site from DB
-              db.run(
-                'DELETE FROM job_sites WHERE id = ?',
-                [req.params.id],
-                function (err4) {
-                  if (err4) return res.status(500).json({ error: err4.message })
-                  // Remove the job site image file if it exists
-                  if (siteImagePath) {
-                    fs.unlink(siteImagePath, (fsErr) => {
-                      res.json({
-                        deleted: this.changes,
-                        siteImageDeleted: !fsErr,
-                        tasksDeleted: true
-                      })
-                    })
-                  } else {
-                    res.json({ deleted: this.changes, tasksDeleted: true })
-                  }
+          // For each task, delete all comment images
+          let tasksProcessed = 0
+          if (taskRows.length === 0) proceedToDelete()
+          taskRows.forEach((task) => {
+            db.all(
+              'SELECT image_url FROM task_comments WHERE task_id = ?',
+              [task.id],
+              (err3, commentRows) => {
+                if (!err3 && commentRows) {
+                  commentRows.forEach((c) => {
+                    if (c.image_url && c.image_url.startsWith('/uploads/')) {
+                      const commentImagePath = path.join(
+                        uploadFolder,
+                        c.image_url.replace('/uploads/', '')
+                      )
+                      fs.unlink(commentImagePath, () => {}) // Ignore errors
+                    }
+                  })
                 }
-              )
-            }
-          )
+                tasksProcessed++
+                if (tasksProcessed === taskRows.length) {
+                  proceedToDelete()
+                }
+              }
+            )
+          })
+
+          function proceedToDelete() {
+            // Delete all tasks for this job site
+            db.run(
+              'DELETE FROM tasks WHERE site_id = ?',
+              [req.params.id],
+              function (err4) {
+                if (err4) return res.status(500).json({ error: err4.message })
+
+                // Delete the job site from DB
+                db.run(
+                  'DELETE FROM job_sites WHERE id = ?',
+                  [req.params.id],
+                  function (err5) {
+                    if (err5)
+                      return res.status(500).json({ error: err5.message })
+                    // Remove the job site image file if it exists
+                    if (siteImagePath) {
+                      fs.unlink(siteImagePath, (fsErr) => {
+                        res.json({
+                          deleted: this.changes,
+                          siteImageDeleted: !fsErr,
+                          tasksDeleted: true
+                        })
+                      })
+                    } else {
+                      res.json({ deleted: this.changes, tasksDeleted: true })
+                    }
+                  }
+                )
+              }
+            )
+          }
         }
       )
     }
@@ -482,24 +573,45 @@ app.post('/api/tasks', async (req, res) => {
   }
 })
 
-app.put('/api/tasks/:id', (req, res) => {
+app.put('/api/tasks/:id', async (req, res) => {
   const { name, completed, description, image_url, category_id } = req.body
-  // Get the current image_url for the task
-
+  // Get the current task info
   db.get(
-    'SELECT image_url FROM tasks WHERE id = ?',
+    'SELECT name, description, image_url FROM tasks WHERE id = ?',
     [req.params.id],
-    (err, row) => {
+    async (err, row) => {
       if (err) return res.status(500).json({ error: err.message })
       const oldImageUrl = row ? row.image_url : null
+      let name_es = null
+      let description_es = null
+      // Only retranslate if changed
+      try {
+        if (row) {
+          if (name !== row.name) {
+            name_es = name ? await translate(name, { to: 'es' }) : ''
+          }
+          if (description !== row.description) {
+            description_es = description
+              ? await translate(description, { to: 'es' })
+              : ''
+          }
+        }
+      } catch (err) {
+        // Fallback: leave as null
+      }
       db.run(
-        'UPDATE tasks SET name = ?, completed = ?, description = ?, image_url = ?, category_id = ? WHERE id = ?',
+        'UPDATE tasks SET name = ?, completed = ?, description = ?, image_url = ?, category_id = ?' +
+          (name_es !== null ? ', name_es = ?' : '') +
+          (description_es !== null ? ', description_es = ?' : '') +
+          ' WHERE id = ?',
         [
           name,
           completed ? 1 : 0,
           description,
           image_url,
           category_id,
+          ...(name_es !== null ? [name_es] : []),
+          ...(description_es !== null ? [description_es] : []),
           req.params.id
         ],
         function (err2) {
@@ -539,20 +651,38 @@ app.delete('/api/tasks/:id', (req, res) => {
           row.image_url.replace('/uploads/', '')
         )
       }
-      // Delete the task from DB
-      db.run(
-        'DELETE FROM tasks WHERE id = ?',
+
+      // Delete all comment images for this task
+      db.all(
+        'SELECT image_url FROM task_comments WHERE task_id = ?',
         [req.params.id],
-        function (err2) {
+        (err2, commentRows) => {
           if (err2) return res.status(500).json({ error: err2.message })
-          // Remove the image file if it exists
-          if (imagePath) {
-            fs.unlink(imagePath, (fsErr) => {
-              res.json({ deleted: this.changes, imageDeleted: !fsErr })
-            })
-          } else {
-            res.json({ deleted: this.changes })
-          }
+          commentRows.forEach((c) => {
+            if (c.image_url && c.image_url.startsWith('/uploads/')) {
+              const commentImagePath = path.join(
+                uploadFolder,
+                c.image_url.replace('/uploads/', '')
+              )
+              fs.unlink(commentImagePath, () => {}) // Ignore errors
+            }
+          })
+          // Delete the task from DB
+          db.run(
+            'DELETE FROM tasks WHERE id = ?',
+            [req.params.id],
+            function (err3) {
+              if (err3) return res.status(500).json({ error: err3.message })
+              // Remove the image file if it exists
+              if (imagePath) {
+                fs.unlink(imagePath, (fsErr) => {
+                  res.json({ deleted: this.changes, imageDeleted: !fsErr })
+                })
+              } else {
+                res.json({ deleted: this.changes })
+              }
+            }
+          )
         }
       )
     }
